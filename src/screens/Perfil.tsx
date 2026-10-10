@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Medal, Piece } from "../components/Piece";
+import { IsoPiece } from "../components/IsoPiece";
+import { Medal } from "../components/Medal";
 import { Avatar, Icon, Sheet } from "../components/ui";
 import { AVATAR_BGS, AVATAR_STYLES, avatarUri, randomSeed, type AvatarStyleKey } from "../lib/avatar";
 import { resetDemo } from "../lib/demoBackend";
@@ -24,12 +25,12 @@ function AvatarEditor({ me, onClose }: { me: Profile; onClose: () => void }) {
   const [cfg, setCfg] = useState<AvatarConfig>(me.avatar);
   const [name, setName] = useState(me.displayName);
   return (
-    <Sheet open onClose={onClose} label="Editar perfil">
-      <div className="stack">
-        <div className="row" style={{ justifyContent: "center" }}>
-          <img className="avatar" src={avatarUri(cfg)} width={112} height={112} alt="Vista previa del avatar" />
+    <Sheet open onClose={onClose} label="Editar perfil" title="Tu perfil" eyebrow="Avatar y nombre">
+      <div className="stack" style={{ gap: 16 }}>
+        <div className="row" style={{ justifyContent: "center", gap: 16 }}>
+          <img className="avatar" src={avatarUri(cfg)} width={112} height={112} alt="Vista previa del avatar" style={{ boxShadow: "0 0 0 4px var(--bg), 0 0 0 6px var(--yellow)" }} />
         </div>
-        <button className="btn block" onClick={() => setCfg({ ...cfg, seed: randomSeed() })}>Generar otra cara</button>
+        <button className="btn block" onClick={() => setCfg({ ...cfg, seed: randomSeed() })}><Icon name="dice" size={20} />Generar otra cara</button>
         <div className="field">
           <span>Estilo</span>
           <div className="style-grid">
@@ -94,22 +95,23 @@ function Settings({ me }: { me: Profile }) {
   return (
     <>
       <div className="section-title"><h2 className="h2">Avisos</h2></div>
-      <div className="card">
-        <div className="row between">
+      <div className="card settings">
+        <div className="toggle">
+          <span className="ti"><Icon name="bell" size={18} /></span>
           <span className="small grow">{push ? pushText[push] : "…"}</span>
           {(push === "on" || push === "off") && (
-            <button className="btn" onClick={onPush}><Icon name="bell" size={18} />{push === "on" ? "Desactivar" : "Activar"}</button>
+            <button className={`btn sm ${push === "off" ? "primary" : ""}`} onClick={onPush}>{push === "on" ? "Desactivar" : "Activar"}</button>
           )}
         </div>
-        <div className="dashed" />
         {([
-          ["notifyFeed", "Cuando alguien estudia, entrena o agenda un examen"],
-          ["notifyWakeup", "8:30, recordatorio de la foto de las 9"],
-          ["notifyExams", "Una semana y un día antes de tus exámenes"],
-          ["notifyWeekly", "Domingo si te falta algo y lunes con el resumen"],
-        ] as const).map(([k, label]) => (
+          ["notifyFeed", "users", "Cuando alguien estudia, entrena o agenda un examen"],
+          ["notifyWakeup", "sun", "8:30, recordatorio de la foto de las 9"],
+          ["notifyExams", "calendar", "Una semana y un día antes de tus exámenes"],
+          ["notifyWeekly", "rank", "Domingo si te falta algo y lunes con el resumen"],
+        ] as const).map(([k, ico, label]) => (
           <label key={k} className="toggle">
-            <span className="small">{label}</span>
+            <span className="ti"><Icon name={ico} size={18} /></span>
+            <span className="small grow">{label}</span>
             <input type="checkbox" className="switch" checked={me[k]} onChange={() => toggle(k)} />
           </label>
         ))}
@@ -117,30 +119,30 @@ function Settings({ me }: { me: Profile }) {
 
       <div className="section-title"><h2 className="h2">Tema</h2></div>
       <div className="seg" role="group" aria-label="Tema">
-        {[["system", "Automático"], ["light", "Papel"], ["dark", "Plano"]].map(([k, l]) => (
-          <button key={k} aria-pressed={theme === k} onClick={() => {
+        {[["system", "Automático", "gear"], ["light", "Papel", "sun"], ["dark", "Plano azul", "moon"]].map(([k, l, ico]) => (
+          <button key={k} aria-pressed={theme === k} className="row" style={{ justifyContent: "center", gap: 6 }} onClick={() => {
             setTheme(k);
             try { localStorage.setItem(THEME_KEY, k); } catch { /* ignorar */ }
             applyTheme(k);
-          }}>{l}</button>
+          }}><Icon name={ico} size={16} />{l}</button>
         ))}
       </div>
 
       {myActs.length > 0 && (
         <>
           <div className="section-title"><h2 className="h2">Tu actividad física</h2></div>
-          <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
+          <div className="card tight">
             <ul className="feed">
               {myActs.map((a) => (
-                <li key={a.id} style={{ alignItems: "center" }}>
-                  <Icon name="run" />
+                <li key={a.id}>
+                  <span className="thumb" style={{ background: "var(--green-soft)", color: "var(--green)" }}><Icon name="run" /></span>
                   <div className="grow">
-                    <div className="what"><b>{a.kind}</b>{a.minutes ? `, ${fmtMinutes(a.minutes)}` : ""}</div>
+                    <div className="what"><b>{a.kind}</b>{a.minutes ? ` · ${fmtMinutes(a.minutes)}` : ""}</div>
                     <div className="when">{new Date(`${a.doneOn}T12:00`).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "short" })}</div>
                   </div>
-                  <button className="btn-ghost" aria-label="Borrar actividad"
+                  <button className="icon-btn" aria-label="Borrar actividad"
                     onClick={() => { if (confirm("¿Borrar esta actividad?")) dispatch({ kind: "activity.delete", id: a.id, userId: me.id }); }}>
-                    <Icon name="trash" size={20} />
+                    <Icon name="trash" size={19} />
                   </button>
                 </li>
               ))}
@@ -149,12 +151,12 @@ function Settings({ me }: { me: Profile }) {
         </>
       )}
 
-      <div className="stack" style={{ marginTop: 26 }}>
+      <div className="stack" style={{ marginTop: 28 }}>
         {backend.isDemo && (
-          <button className="btn block" onClick={() => { resetDemo(); location.reload(); }}>Reiniciar datos de la demo</button>
+          <button className="btn block" onClick={() => { resetDemo(); location.reload(); }}><Icon name="sync" size={18} />Reiniciar datos de la demo</button>
         )}
-        <button className="btn danger block" onClick={async () => { await backend.signOut(); setUserId(null); nav("/"); }}>Cerrar sesión</button>
-        <p className="tiny muted">
+        <button className="btn danger block" onClick={async () => { await backend.signOut(); setUserId(null); nav("/"); }}><Icon name="logout" size={18} />Cerrar sesión</button>
+        <p className="tiny faint center">
           Avatares de DiceBear: {Object.values(AVATAR_STYLES).map((s) => s.credit).join("; ")}. Planes de estudio de FIUBA-Map (MIT).
         </p>
       </div>
@@ -168,6 +170,7 @@ export default function Perfil() {
   const nav = useNavigate();
   const [editing, setEditing] = useState(false);
   const [trophy, setTrophy] = useState<Trophy | null>(null);
+  const [piece, setPiece] = useState<(typeof PIECES)[number] | null>(null);
   const p = data.profiles.find((x) => x.id === id);
   const isMe = id === userId;
   const trophies = useMemo(() => (p ? trophiesFor(data, p.id) : []), [data, p]);
@@ -180,42 +183,51 @@ export default function Perfil() {
   const earned = trophies.filter((t) => t.earned).length;
   const plan = findPlan(p.planId);
   const lastSession = [...ss].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const totalMin = ss.reduce((a, s) => a + s.minutes, 0);
+  const sortedTrophies = [...trophies].sort((a, b) => Number(b.earned) - Number(a.earned));
 
   return (
     <>
-      <div className="profile-hero">
-        <button className="btn-ghost" onClick={() => nav(-1)} aria-label="Volver"><Icon name="back" /></button>
-        <Avatar profile={p} size={76} />
-        <div className="grow">
-          <h1 className="h1" style={{ fontSize: "1.9rem" }}>{p.displayName}</h1>
-          <div className="small muted">{plan ? `Ing. ${plan.carrera.nombreCorto}` : "Sin carrera elegida"}{lastSession ? `, estudió ${relativeTime(lastSession.createdAt)}` : ""}</div>
+      <div className="profile-top">
+        <button className="icon-btn boxed" onClick={() => nav(-1)} aria-label="Volver"><Icon name="back" /></button>
+        <p className="eyebrow">{isMe ? "Tu perfil" : "Perfil"}</p>
+        {isMe ? <button className="icon-btn boxed" onClick={() => setEditing(true)} aria-label="Editar perfil"><Icon name="edit" size={20} /></button> : <span style={{ width: 40 }} />}
+      </div>
+
+      <section className="console profile-card">
+        <Avatar profile={p} size={96} />
+        <h1 className="h1">{p.displayName}</h1>
+        <p className="small muted" style={{ margin: "6px 0 0" }}>
+          {plan ? `Ing. ${plan.carrera.nombreCorto}` : "Sin carrera elegida"}{lastSession ? ` · estudió ${relativeTime(lastSession.createdAt)}` : ""}
+        </p>
+        <div className="spec">
+          <div><span className="num">{fmtHours(weekMinutes(ss, startOfWeek()))}</span><span className="eyebrow">h esta semana</span></div>
+          <div><span className="num">{currentStreak(ss)}</span><span className="eyebrow">días seguidos</span></div>
+          <div><span className="num">{fmtHours(totalMin, 0)}</span><span className="eyebrow">h en total</span></div>
         </div>
-        {isMe && <button className="btn" onClick={() => setEditing(true)}>Editar</button>}
-      </div>
+      </section>
 
-      <div className="stat-grid">
-        <div><div className="num">{fmtHours(weekMinutes(ss, startOfWeek()))} h</div><div className="tiny muted">esta semana</div></div>
-        <div><div className="num">{currentStreak(ss)}</div><div className="tiny muted">días seguidos</div></div>
-        <div><div className="num">{earned}/{trophies.length}</div><div className="tiny muted">trofeos</div></div>
-      </div>
-
-      <div className="section-title"><h2 className="h2">Planta</h2><span className="small muted">{ss.length} piezas</span></div>
-      <div className="inventory">
+      <div className="section-title"><h2 className="h2">Planta</h2><span className="eyebrow">{ss.length} piezas fabricadas</span></div>
+      <div className="showroom">
         {[...PIECES, CHATARRA].map((pi) => {
           const n = counts.get(pi.key) ?? 0;
           return (
-            <div key={pi.key} className={n === 0 ? "zero" : ""} title={pi.blurb}>
-              <Piece piece={pi.key} size={44} />
-              <span className="num" style={{ fontSize: "1.2rem" }}>{n}</span>
-              <span className="tiny muted">{pi.name}</span>
-            </div>
+            <button key={pi.key} className={`${n === 0 ? "zero" : ""} ${pi.key === "chatarra" ? "wide" : ""}`} onClick={() => setPiece(pi)}>
+              <span className="cnt">×{n}</span>
+              <IsoPiece piece={pi.key} size={92} height={84} locked={n === 0} />
+              <span className="txt">
+                <span className="nm">{pi.name}</span>
+                <span className="tr">{pi.key === "chatarra" ? "Sesión cortada antes de tiempo" : pi.range}</span>
+              </span>
+            </button>
           );
         })}
       </div>
 
-      <div className="section-title"><h2 className="h2">Trofeos</h2></div>
+      <div className="section-title"><h2 className="h2">Trofeos</h2><span className="eyebrow">{earned} de {trophies.length}</span></div>
+      <div className="trophy-bar"><b style={{ width: `${(earned / Math.max(1, trophies.length)) * 100}%` }} /></div>
       <div className="trophies">
-        {trophies.map((t) => (
+        {sortedTrophies.map((t) => (
           <button key={t.id} className={`trophy ${t.earned ? "" : "locked"}`} onClick={() => setTrophy(t)}>
             <Medal glyph={t.glyph} earned={t.earned} />
             <span className="t">{t.name}</span>
@@ -227,11 +239,24 @@ export default function Perfil() {
       {editing && isMe && <AvatarEditor me={p} onClose={() => setEditing(false)} />}
       <Sheet open={!!trophy} onClose={() => setTrophy(null)} label={trophy?.name ?? "Trofeo"}>
         {trophy && (
-          <div className="stack" style={{ alignItems: "center", textAlign: "center" }}>
-            <Medal glyph={trophy.glyph} earned={trophy.earned} size={96} />
-            <h2 className="h1" style={{ fontSize: "1.6rem" }}>{trophy.name}</h2>
-            <p style={{ margin: 0 }}>{trophy.description}</p>
-            <p className="small muted" style={{ margin: 0 }}>{trophy.earned ? "Conseguido" : trophy.progress ?? "Todavía no"}</p>
+          <div className="stack" style={{ alignItems: "center", textAlign: "center", paddingBottom: 8 }}>
+            <Medal glyph={trophy.glyph} earned={trophy.earned} size={110} />
+            <p className="eyebrow">{trophy.earned ? "Conseguido" : "Bloqueado"}</p>
+            <h2 className="h1" style={{ fontSize: "1.7rem" }}>{trophy.name}</h2>
+            <p style={{ margin: 0, maxWidth: 320 }}>{trophy.description}</p>
+            {!trophy.earned && trophy.progress && <p className="small muted" style={{ margin: 0 }}>{trophy.progress}</p>}
+          </div>
+        )}
+      </Sheet>
+      <Sheet open={!!piece} onClose={() => setPiece(null)} label={piece?.name ?? "Pieza"}>
+        {piece && (
+          <div className="stack" style={{ alignItems: "center", textAlign: "center", paddingBottom: 8 }}>
+            <IsoPiece piece={piece.key} size={240} height={200} locked={(counts.get(piece.key) ?? 0) === 0} />
+            <p className="eyebrow">{piece.blurb}</p>
+            <h2 className="h1" style={{ fontSize: "1.7rem" }}>{piece.name}</h2>
+            <p className="muted" style={{ margin: 0 }}>
+              {(counts.get(piece.key) ?? 0) === 0 ? "Todavía no fabricaste ninguna." : `${isMe ? "Fabricaste" : `${p.displayName} fabricó`} ${counts.get(piece.key)}.`}
+            </p>
           </div>
         )}
       </Sheet>

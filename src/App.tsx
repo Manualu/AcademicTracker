@@ -1,4 +1,5 @@
-import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { HashRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { BottomNav, NetBar, Toasts } from "./components/ui";
 import { StoreProvider, useStore } from "./lib/store";
 import { TimerProvider } from "./lib/timer";
@@ -10,9 +11,16 @@ import Login from "./screens/Login";
 import Perfil from "./screens/Perfil";
 import Ranking from "./screens/Ranking";
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
+
 function Shell() {
   const { ready, userId } = useStore();
-  if (!ready) return null;
+  useEffect(() => { window.scrollTo(0, 0); }, [userId]);
+  if (!ready) return <div className="splash"><span>Remontada<b>.</b></span></div>;
   if (!userId) return <div className="app"><Login /></div>;
   return (
     <TimerProvider>
@@ -38,6 +46,7 @@ export default function App() {
   return (
     <HashRouter>
       <StoreProvider>
+        <ScrollToTop />
         <Shell />
       </StoreProvider>
     </HashRouter>

@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Piece } from "../components/Piece";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { IsoPiece, IsoPieceLive } from "../components/IsoPiece";
 import { Icon, ScreenHead, Sheet } from "../components/ui";
 import { nextPiece, pieceFor, pieceInfo, PIECES } from "../lib/pieces";
 import { useMe, useStore } from "../lib/store";
 import { dayKey, fmtClock, fmtMinutes, fmtTime, parseDay, uuid } from "../lib/time";
 import { useTimer } from "../lib/timer";
+import type { PieceKey } from "../lib/types";
 
-const DURATIONS = [25, 50, 90, 120];
+const DURATIONS = [25, 50, 60, 90, 120];
 
 type Subj = { id: string | null; name: string };
 
@@ -33,60 +34,84 @@ function useMySubjects(): Subj[] {
 function SubjectPicker({ value, onChange }: { value: Subj | null; onChange: (s: Subj | null) => void }) {
   const subjects = useMySubjects();
   const [custom, setCustom] = useState("");
+  const [typing, setTyping] = useState(subjects.length === 0);
   const isCustom = value !== null && !subjects.some((s) => s.name === value.name);
   return (
-    <div className="subject-pick" role="group" aria-label="Materia">
-      {subjects.map((s) => (
-        <button key={s.name} aria-pressed={value?.name === s.name} onClick={() => onChange(s)}>{s.name}</button>
-      ))}
-      <input
-        className="input"
-        placeholder={subjects.length ? "Otra materia" : "¿Qué vas a estudiar?"}
-        value={isCustom ? value!.name : custom}
-        onChange={(e) => { setCustom(e.target.value); onChange(e.target.value.trim() ? { id: null, name: e.target.value } : null); }}
-        maxLength={80}
-      />
+    <div>
+      <div className="chips subj-chips" role="group" aria-label="Materia">
+        {subjects.map((s) => (
+          <button key={s.name} className="chip" aria-pressed={value?.name === s.name} onClick={() => { setTyping(false); onChange(s); }}>{s.name}</button>
+        ))}
+        {subjects.length > 0 && (
+          <button className="chip add" aria-pressed={typing || isCustom} onClick={() => { setTyping(true); onChange(custom.trim() ? { id: null, name: custom } : null); }}>
+            <Icon name="plus" size={15} stroke={2.4} />Otra
+          </button>
+        )}
+      </div>
+      {(typing || isCustom) && (
+        <input
+          className="input custom-subj"
+          placeholder={subjects.length ? "Nombre de la materia" : "¿Qué vas a estudiar?"}
+          value={isCustom ? value!.name : custom}
+          autoFocus={subjects.length > 0}
+          onChange={(e) => { setCustom(e.target.value); onChange(e.target.value.trim() ? { id: null, name: e.target.value } : null); }}
+          maxLength={80}
+        />
+      )}
       {subjects.length === 0 && (
-        <p className="small muted" style={{ margin: 0 }}>
-          Si marcás las materias que estás cursando en <Link to="/carrera">Carrera</Link>, aparecen acá para elegirlas rápido.
+        <p className="small muted" style={{ margin: "10px 2px 0" }}>
+          Si marcás lo que estás cursando en <Link to="/carrera">Carrera</Link>, tus materias aparecen acá.
         </p>
       )}
     </div>
   );
 }
 
-function Dial({ progress, children }: { progress: number; children: React.ReactNode }) {
+function Dial({ progress, children, ticks = 60 }: { progress: number; children: ReactNode; ticks?: number }) {
   const r = 44;
   const c = 2 * Math.PI * r;
+  const a = progress * Math.PI * 2;
   return (
     <div className="dial">
       <svg className="ring" viewBox="0 0 100 100" aria-hidden>
-        {Array.from({ length: 60 }, (_, i) => {
-          const a = (i / 60) * Math.PI * 2;
+        {Array.from({ length: ticks }, (_, i) => {
+          const t = (i / ticks) * Math.PI * 2;
           const long = i % 5 === 0;
-          const r1 = long ? 45.5 : 47;
+          const done = i / ticks <= progress;
           return (
-            <line key={i} x1={50 + r1 * Math.cos(a)} y1={50 + r1 * Math.sin(a)} x2={50 + 49 * Math.cos(a)} y2={50 + 49 * Math.sin(a)}
-              stroke="var(--ink-3)" strokeWidth={long ? 0.9 : 0.5} />
+            <line key={i} x1={50 + (long ? 47.2 : 48.2) * Math.cos(t)} y1={50 + (long ? 47.2 : 48.2) * Math.sin(t)}
+              x2={50 + 49.8 * Math.cos(t)} y2={50 + 49.8 * Math.sin(t)}
+              stroke={done ? "var(--yellow)" : "rgba(220,232,255,.28)"} strokeWidth={long ? 0.7 : 0.4} />
           );
         })}
-        <circle cx="50" cy="50" r={r - 4} fill="var(--card)" stroke="var(--line)" strokeWidth="1.2" />
-        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--soft)" strokeWidth="5" />
-        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--yellow)" strokeWidth="5" strokeDasharray={`${c * progress} ${c}`} />
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(220,232,255,.1)" strokeWidth="2.2" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--yellow)" strokeWidth="2.2" strokeLinecap="round"
+          strokeDasharray={`${c * progress} ${c}`} style={{ filter: "drop-shadow(0 0 2px rgba(255,194,26,.8))", transition: "stroke-dasharray 1s linear" }} />
+        <circle cx={50 + r * Math.cos(a)} cy={50 + r * Math.sin(a)} r="2.4" fill="#fff" stroke="var(--yellow)" strokeWidth="1.2" />
+        <circle cx="50" cy="50" r="38" fill="rgba(6,14,34,.35)" stroke="rgba(220,232,255,.08)" strokeWidth="0.4" />
       </svg>
       <div className="center">{children}</div>
     </div>
   );
 }
 
+function useFocusMode(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    document.body.classList.add("focus");
+    return () => document.body.classList.remove("focus");
+  }, [on]);
+}
+
 function Running() {
   const { running, elapsedSec, finish, abandon, discard } = useTimer();
+  const nav = useNavigate();
   const [confirm, setConfirm] = useState(false);
   if (!running) return null;
   const elapsedMin = elapsedSec / 60;
   const countdown = running.targetMin !== null;
 
-  let piece = pieceFor(Math.max(1, elapsedMin));
+  let piece: PieceKey;
   let progress: number;
   let pieceProgress: number;
   let caption: string;
@@ -94,7 +119,8 @@ function Running() {
     piece = pieceFor(running.targetMin!);
     progress = Math.min(1, elapsedMin / running.targetMin!);
     pieceProgress = progress;
-    caption = `Fabricando ${pieceInfo(piece).article}`;
+    const end = new Date(running.startedAt + running.targetMin! * 60_000);
+    caption = `Fabricando ${pieceInfo(piece).article} · termina ${fmtTime(end)}`;
   } else {
     const nxt = nextPiece(elapsedMin);
     const cur = PIECES.filter((p) => p.min <= elapsedMin).pop();
@@ -105,42 +131,56 @@ function Running() {
       pieceProgress = (elapsedMin - from) / (nxt.min - from);
       caption = `${fmtMinutes(Math.ceil(nxt.min - elapsedMin))} para ${nxt.article}`;
     } else {
+      piece = "horno";
       pieceProgress = 1;
-      caption = "Ya fabricaste el alto horno";
+      caption = "Alto horno fabricado. Seguí si querés";
     }
   }
 
   return (
-    <div className="stack" style={{ alignItems: "stretch" }}>
-      <p className="h2" style={{ textAlign: "center", marginTop: 4 }}>{running.subjectName}</p>
-      <Dial progress={progress}>
-        <Piece piece={piece} size={92} progress={pieceProgress} />
-        <span className="num clock">{fmtClock(countdown ? running.targetMin! * 60 - elapsedSec : elapsedSec)}</span>
-        <span className="small muted">{caption}</span>
-      </Dial>
-      <p className="small muted row" style={{ justifyContent: "center", textAlign: "center", margin: "4px 0" }}>
-        <Icon name="plane" size={16} /> Funciona en modo avión y con la pantalla bloqueada.
-      </p>
-      {countdown ? (
-        <button className="btn danger block" onClick={() => setConfirm(true)}>Cortar antes de tiempo</button>
-      ) : elapsedMin < 1 ? (
-        <button className="btn block" onClick={discard}>Cancelar</button>
-      ) : (
-        <button className="btn primary big block" onClick={finish}>Terminar y guardar</button>
-      )}
+    <div className="focus" role="region" aria-label="Sesión de estudio">
+      <div className="focus-inner">
+        <div className="top">
+          <button className="icon-btn" onClick={() => nav("/")} aria-label="Minimizar"><Icon name="down" /></button>
+          <span className="chip-dark"><Icon name="plane" size={13} /> Funciona en modo avión</span>
+          <span style={{ width: 40 }} />
+        </div>
+        <div className="subject">
+          <p className="eyebrow" style={{ color: "var(--con-ink-3)" }}>{countdown ? `Sesión de ${fmtMinutes(running.targetMin!)}` : "Modo libre"}</p>
+          <h1 className="h1" style={{ color: "#fff", marginTop: 6 }}>{running.subjectName}</h1>
+        </div>
+        <Dial progress={progress}>
+          <IsoPieceLive piece={piece} size={250} height={230} progress={pieceProgress} />
+        </Dial>
+        <div className="clock" aria-live="off">{fmtClock(countdown ? running.targetMin! * 60 - elapsedSec : elapsedSec)}</div>
+        <div className="clock-sub">{caption}</div>
 
-      <Sheet open={confirm} onClose={() => setConfirm(false)} label="Cortar la sesión">
+        <div className="actions">
+          {countdown ? (
+            <button className="btn block" onClick={() => setConfirm(true)}><Icon name="stop" size={16} />Cortar antes de tiempo</button>
+          ) : elapsedMin < 1 ? (
+            <button className="btn block" onClick={discard}>Cancelar</button>
+          ) : (
+            <button className="btn primary big block" onClick={finish}><Icon name="check" size={20} stroke={2.6} />Terminar y guardar</button>
+          )}
+          <p className="note">Podés bloquear el celular: el tiempo sigue contando.</p>
+        </div>
+      </div>
+
+      <Sheet open={confirm} onClose={() => setConfirm(false)} label="Cortar la sesión" title="¿Cortás la sesión?" eyebrow="Cuenta regresiva">
         <div className="stack">
-          <h2 className="h2">¿Cortás la sesión?</h2>
           {elapsedMin >= 1 ? (
-            <p style={{ margin: 0 }}>
-              Se guardan los {fmtMinutes(Math.floor(elapsedMin))} que estudiaste, pero en vez de {pieceInfo(piece).article} te sale chatarra.
-            </p>
+            <div className="row" style={{ gap: 14 }}>
+              <IsoPiece piece="chatarra" size={72} />
+              <p style={{ margin: 0 }} className="grow">
+                Se guardan los <b>{fmtMinutes(Math.floor(elapsedMin))}</b> que estudiaste, pero en vez de {pieceInfo(piece).article} te sale <b>chatarra</b>.
+              </p>
+            </div>
           ) : (
             <p style={{ margin: 0 }}>Llevás menos de un minuto, así que no se guarda nada.</p>
           )}
-          <div className="row">
-            <button className="btn grow" onClick={() => setConfirm(false)}>Seguir estudiando</button>
+          <div className="row" style={{ marginTop: 6 }}>
+            <button className="btn primary grow" onClick={() => setConfirm(false)}>Seguir estudiando</button>
             <button className="btn danger grow" onClick={() => { setConfirm(false); if (elapsedMin >= 1) abandon(); else discard(); }}>Cortar</button>
           </div>
         </div>
@@ -149,6 +189,8 @@ function Running() {
   );
 }
 
+const CONFETTI = ["#FFC21A", "#3FD09A", "#7EAEFF", "#FF7D82", "#FFFFFF"];
+
 function Result() {
   const { result, clearResult } = useTimer();
   const { online } = useStore();
@@ -156,15 +198,31 @@ function Result() {
   const info = pieceInfo(result.piece);
   const scrap = result.piece === "chatarra";
   return (
-    <div className="card celebrate stack" style={{ alignItems: "center" }}>
-      <div className="piece-big"><Piece piece={result.piece} size={120} /></div>
-      <h2 className="h1" style={{ fontSize: "1.8rem" }}>{scrap ? "Salió chatarra" : `Fabricaste ${info.article}`}</h2>
-      <p className="muted" style={{ margin: 0 }}>
-        {fmtMinutes(result.minutes)} de {result.subjectName}. {scrap ? "Las horas cuentan igual; la pieza no." : online ? "Ya está en tu planta y el grupo lo ve." : "Ya está en tu planta. El grupo lo ve cuando vuelva la señal."}
-      </p>
-      <div className="row" style={{ width: "100%" }}>
-        <button className="btn grow" onClick={clearResult}>Otra sesión</button>
-        <Link className="btn primary grow" to="/" onClick={clearResult}>Ir al inicio</Link>
+    <div className="focus" role="dialog" aria-label="Sesión terminada">
+      <div className="focus-inner">
+        {!scrap && (
+          <div className="confetti" aria-hidden>
+            {Array.from({ length: 36 }, (_, i) => (
+              <i key={i} style={{ left: `${(i * 37) % 100}%`, background: CONFETTI[i % CONFETTI.length], animationDelay: `${(i % 9) * 60}ms`, animationDuration: `${1.4 + (i % 5) * 0.25}s` }} />
+            ))}
+          </div>
+        )}
+        <div className={`result ${scrap ? "scrap" : ""}`} style={{ marginTop: "8vh" }}>
+          <p className="eyebrow" style={{ color: "var(--con-ink-3)" }}>{scrap ? "Sesión cortada" : "Sesión completa"}</p>
+          <div className="stage">
+            <div className="rays" />
+            <IsoPiece piece={result.piece} size={260} height={230} />
+          </div>
+          <h2 className="h1">{scrap ? "Salió chatarra" : `Fabricaste ${info.article}`}</h2>
+          <p className="muted" style={{ margin: "10px auto 0", maxWidth: 320, color: "var(--con-ink-2)" }}>
+            <b style={{ color: "#fff" }}>{fmtMinutes(result.minutes)}</b> de {result.subjectName}.{" "}
+            {scrap ? "Las horas cuentan igual; la pieza no." : online ? "Ya está en tu planta y el grupo lo ve." : "Ya está en tu planta. El grupo lo ve cuando vuelva la señal."}
+          </p>
+        </div>
+        <div className="actions" style={{ flexDirection: "row" }}>
+          <button className="btn grow" onClick={clearResult}>Otra sesión</button>
+          <Link className="btn primary grow" to="/" onClick={clearResult}>Ir al inicio</Link>
+        </div>
       </div>
     </div>
   );
@@ -174,9 +232,7 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   const { userId, dispatch, toast } = useStore();
   const [subject, setSubject] = useState<Subj | null>(null);
   const [date, setDate] = useState(dayKey(new Date()));
-  const [h, setH] = useState(1);
-  const [m, setM] = useState(0);
-  const minutes = h * 60 + m;
+  const [minutes, setMinutes] = useState(60);
   const valid = subject && subject.name.trim() && minutes >= 1 && minutes <= 720 && date <= dayKey(new Date());
 
   function save() {
@@ -193,31 +249,35 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
         minutes, source: "manual", outcome: "completed", piece: pieceFor(minutes), createdAt: new Date().toISOString(),
       },
     });
-    toast({ tone: "success", title: `Cargaste ${fmtMinutes(minutes)}`, body: `Fabricaste ${pieceInfo(pieceFor(minutes)).article}.` });
+    toast({ tone: "success", title: `Cargaste ${fmtMinutes(minutes)}`, body: `Fabricaste ${pieceInfo(pieceFor(minutes)).article}.`, piece: pieceFor(minutes) });
     onClose();
   }
 
+  const step = (d: number) => setMinutes((m) => Math.max(5, Math.min(720, m + d)));
+
   return (
-    <Sheet open={open} onClose={onClose} label="Cargar horas a mano">
-      <div className="stack">
-        <h2 className="h2">Cargar horas a mano</h2>
-        <p className="small muted" style={{ margin: 0 }}>Para cuando estudiaste sin el cronómetro. Suma igual y también fabrica pieza.</p>
-        <SubjectPicker value={subject} onChange={setSubject} />
+    <Sheet open={open} onClose={onClose} label="Cargar horas a mano" title="Cargar a mano" eyebrow="Sin cronómetro">
+      <div className="stack" style={{ gap: 16 }}>
+        <p className="small muted" style={{ margin: 0 }}>Para cuando estudiaste sin la app. Suma igual y también fabrica pieza.</p>
+        <div className="field"><span>Materia</span><SubjectPicker value={subject} onChange={setSubject} /></div>
         <label className="field">
           <span>Día</span>
           <input className="input" type="date" value={date} max={dayKey(new Date())} onChange={(e) => setDate(e.target.value)} />
         </label>
-        <div className="row">
-          <label className="field grow">
-            <span>Horas</span>
-            <input className="input" type="number" inputMode="numeric" min={0} max={12} value={h} onChange={(e) => setH(Math.max(0, Math.min(12, Number(e.target.value) || 0)))} />
-          </label>
-          <label className="field grow">
-            <span>Minutos</span>
-            <input className="input" type="number" inputMode="numeric" min={0} max={59} step={5} value={m} onChange={(e) => setM(Math.max(0, Math.min(59, Number(e.target.value) || 0)))} />
-          </label>
+        <div className="field">
+          <span>Duración</span>
+          <div className="row" style={{ gap: 12 }}>
+            <div className="stepper grow">
+              <button onClick={() => step(-15)} aria-label="Menos 15 minutos">−</button>
+              <output>{fmtMinutes(minutes)}</output>
+              <button onClick={() => step(15)} aria-label="Más 15 minutos">+</button>
+            </div>
+            <IsoPiece piece={pieceFor(minutes)} size={56} />
+          </div>
         </div>
-        <button className="btn primary big block" disabled={!valid} onClick={save}>Cargar {minutes >= 1 ? fmtMinutes(minutes) : ""}</button>
+        <button className="btn primary big block" disabled={!valid} onClick={save}>
+          {subject?.name.trim() ? `Cargar ${fmtMinutes(minutes)}` : "Elegí la materia"}
+        </button>
       </div>
     </Sheet>
   );
@@ -226,74 +286,89 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
 export default function Estudiar() {
   const { running, result, start } = useTimer();
   const { data, userId, dispatch } = useStore();
+  const subjects = useMySubjects();
   const [subject, setSubject] = useState<Subj | null>(null);
   const [duration, setDuration] = useState<number | null>(50);
   const [manual, setManual] = useState(false);
+  useFocusMode(!!running || !!result);
+
+  // Arranca con la última materia que estudiaste elegida
+  useEffect(() => { if (!subject && subjects.length) setSubject(subjects[0]); }, [subjects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const todays = data.sessions
     .filter((s) => s.userId === userId && dayKey(s.startedAt) === dayKey(new Date()))
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 
-  if (running) return (<><ScreenHead title="Estudiando" /><Running /></>);
+  if (running) return <Running />;
+  if (result) return <Result />;
+
+  const ready = !!subject?.name.trim();
 
   return (
     <>
-      <ScreenHead title="Estudiar" sub="Elegí la materia y cuánto tiempo. Al terminar, fabricás una pieza para tu planta." />
-      {result ? <Result /> : (
-        <div className="stack">
-          <section className="stack">
-            <h2 className="h2">Materia</h2>
-            <SubjectPicker value={subject} onChange={setSubject} />
-          </section>
-          <section className="stack">
-            <h2 className="h2">Duración</h2>
-            <div className="chips" role="group" aria-label="Duración">
-              {DURATIONS.map((d) => (
-                <button key={d} className="chip" aria-pressed={duration === d} onClick={() => setDuration(d)}>{fmtMinutes(d)}</button>
-              ))}
-              <button className="chip" aria-pressed={duration === null} onClick={() => setDuration(null)}>Libre</button>
-            </div>
-            <div className="card row">
-              <Piece piece={duration ? pieceFor(duration) : "tornillo"} size={52} />
-              <p className="small grow" style={{ margin: 0 }}>
-                {duration
-                  ? <>Si llegás al final, fabricás <b>{pieceInfo(pieceFor(duration)).article}</b>. Si cortás antes, sale chatarra.</>
-                  : <>Cronómetro sin límite: la pieza mejora a medida que pasa el tiempo y la guardás cuando terminás.</>}
-              </p>
-            </div>
-          </section>
-          <button className="btn primary big block" disabled={!subject?.name.trim()}
-            onClick={() => subject && start({ subjectId: subject.id, subjectName: subject.name.trim(), targetMin: duration })}>
-            Empezar
-          </button>
-          <button className="btn block" onClick={() => setManual(true)}>Cargar horas a mano</button>
+      <ScreenHead eyebrow="Sesión nueva" title="Estudiar" sub="Cada sesión fabrica una pieza para tu planta. Más largo, mejor máquina."
+        right={<button className="btn sm" onClick={() => setManual(true)}><Icon name="edit" size={16} />A mano</button>} />
 
-          {todays.length > 0 && (
-            <section>
-              <div className="section-title"><h2 className="h2">Hoy</h2><span className="small muted">{fmtMinutes(todays.reduce((a, s) => a + s.minutes, 0))}</span></div>
-              <div className="card" style={{ paddingTop: 4, paddingBottom: 4 }}>
-                <ul className="feed">
-                  {todays.map((s) => (
-                    <li key={s.id} style={{ alignItems: "center" }}>
-                      <Piece piece={s.piece} size={34} />
-                      <div className="grow">
-                        <div className="what"><b>{s.subjectName}</b></div>
-                        <div className="when">
-                          {fmtTime(new Date(s.startedAt))}, {fmtMinutes(s.minutes)}
-                          {s.source === "manual" ? " (manual)" : ""}
-                        </div>
-                      </div>
-                      <button className="btn-ghost" aria-label="Borrar sesión"
-                        onClick={() => { if (confirm("¿Borrar esta sesión?")) dispatch({ kind: "session.delete", id: s.id, userId: s.userId }); }}>
-                        <Icon name="trash" size={20} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-          )}
-        </div>
+      <div className="step-label"><span className="n">1</span><h2 className="h2">Materia</h2></div>
+      <SubjectPicker value={subject} onChange={setSubject} />
+
+      <div className="step-label"><span className="n">2</span><h2 className="h2">Duración</h2></div>
+      <div className="durations" role="group" aria-label="Duración">
+        {DURATIONS.map((d) => (
+          <button key={d} className="dur" aria-pressed={duration === d} onClick={() => setDuration(d)}>
+            <IsoPiece piece={pieceFor(d)} size={70} height={62} />
+            <span className="t">{fmtMinutes(d)}</span>
+            <span className="p">{pieceInfo(pieceFor(d)).name}</span>
+          </button>
+        ))}
+        <button className="dur" aria-pressed={duration === null} onClick={() => setDuration(null)}>
+          <div style={{ width: 70, height: 62, display: "grid", placeItems: "center" }}>
+            <Icon name="timer" size={34} stroke={1.6} />
+          </div>
+          <span className="t">Libre</span>
+          <span className="p">Mejora con el tiempo</span>
+        </button>
+      </div>
+      <p className="reward-note">
+        <Icon name="info" size={16} />
+        <span>
+          {duration
+            ? <>Si llegás al final, fabricás <b>{pieceInfo(pieceFor(duration)).article}</b>. Si cortás antes, sale chatarra (las horas cuentan igual).</>
+            : <>Sin límite: la pieza sube de categoría mientras estudiás y la guardás cuando terminás.</>}
+        </span>
+      </p>
+
+      <div className="start-bar">
+        <button className="btn primary big block" disabled={!ready}
+          onClick={() => subject && start({ subjectId: subject.id, subjectName: subject.name.trim(), targetMin: duration })}>
+          {ready ? <><Icon name="play" size={20} />Empezar {duration ? fmtMinutes(duration) : "en modo libre"}</> : "Elegí una materia"}
+        </button>
+      </div>
+
+      {todays.length > 0 && (
+        <section>
+          <div className="section-title"><h2 className="h2">Hoy</h2><span className="eyebrow">{fmtMinutes(todays.reduce((a, s) => a + s.minutes, 0))} en total</span></div>
+          <div className="card tight">
+            <ul className="feed">
+              {todays.map((s) => (
+                <li key={s.id}>
+                  <IsoPiece piece={s.piece} size={46} />
+                  <div className="grow">
+                    <div className="what"><b>{s.subjectName}</b></div>
+                    <div className="when">
+                      {fmtTime(s.startedAt)} · {fmtMinutes(s.minutes)} · {pieceInfo(s.piece).name}
+                      {s.source === "manual" ? " · manual" : ""}
+                    </div>
+                  </div>
+                  <button className="icon-btn" aria-label="Borrar sesión"
+                    onClick={() => { if (confirm("¿Borrar esta sesión?")) dispatch({ kind: "session.delete", id: s.id, userId: s.userId }); }}>
+                    <Icon name="trash" size={19} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       )}
       <ManualSheet open={manual} onClose={() => setManual(false)} />
     </>

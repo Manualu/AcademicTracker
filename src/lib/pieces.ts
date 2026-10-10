@@ -1,15 +1,15 @@
 import type { PieceKey } from "./types";
 
-export type PieceInfo = { key: PieceKey; name: string; article: string; min: number; blurb: string };
+export type PieceInfo = { key: PieceKey; name: string; article: string; min: number; blurb: string; range?: string };
 
 /** Cada sesión fabrica una pieza para tu planta según cuánto duró. */
 export const PIECES: PieceInfo[] = [
-  { key: "tornillo", name: "Tornillo", article: "un tornillo", min: 1, blurb: "Menos de 15 minutos" },
-  { key: "engranaje", name: "Engranaje", article: "un engranaje", min: 15, blurb: "De 15 a 29 minutos" },
-  { key: "motor", name: "Motor", article: "un motor", min: 30, blurb: "De 30 a 59 minutos" },
-  { key: "torno", name: "Torno", article: "un torno", min: 60, blurb: "De 1 h a 1 h 29 min" },
-  { key: "robot", name: "Brazo robótico", article: "un brazo robótico", min: 90, blurb: "De 1 h 30 min a 1 h 59 min" },
-  { key: "horno", name: "Alto horno", article: "un alto horno", min: 120, blurb: "2 horas o más" },
+  { key: "tornillo", name: "Cajón de bulones", article: "un cajón de bulones", min: 1, blurb: "Menos de 15 minutos" , range: "< 15 min" },
+  { key: "engranaje", name: "Engranaje", article: "un engranaje", min: 15, blurb: "De 15 a 29 minutos" , range: "15–29 min" },
+  { key: "motor", name: "Motor", article: "un motor", min: 30, blurb: "De 30 a 59 minutos" , range: "30–59 min" },
+  { key: "torno", name: "Torno", article: "un torno", min: 60, blurb: "De 1 h a 1 h 29 min" , range: "1 h – 1 h 29" },
+  { key: "robot", name: "Brazo robótico", article: "un brazo robótico", min: 90, blurb: "De 1 h 30 min a 1 h 59 min" , range: "1 h 30 – 1 h 59" },
+  { key: "horno", name: "Alto horno", article: "un alto horno", min: 120, blurb: "2 horas o más" , range: "2 h o más" },
 ];
 
 export const CHATARRA: PieceInfo = {
