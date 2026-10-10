@@ -7,12 +7,14 @@
     "id": "civil",
     "ano": 2009,
     "creditosTotal": 295,
+    "creditosCbc": 38,
     "creditosElectivas": 34
    },
    {
     "id": "civil-2020",
     "ano": 2020,
     "creditosTotal": 251,
+    "creditosCbc": 38,
     "creditosElectivas": 24
    }
   ]
@@ -25,12 +27,14 @@
     "id": "alimentos",
     "ano": 2001,
     "creditosTotal": 272,
+    "creditosCbc": 38,
     "creditosElectivas": 10
    },
    {
     "id": "alimentos-2020",
     "ano": 2020,
     "creditosTotal": 243,
+    "creditosCbc": 38,
     "creditosElectivas": 12
    }
   ]
@@ -43,6 +47,7 @@
     "id": "bioingenieria-2020",
     "ano": 2020,
     "creditosTotal": 250,
+    "creditosCbc": 38,
     "creditosElectivas": 16
    }
   ]
@@ -55,12 +60,14 @@
     "id": "electricista",
     "ano": 2009,
     "creditosTotal": 280,
+    "creditosCbc": 38,
     "creditosElectivas": null
    },
    {
     "id": "energia-electrica-2020",
     "ano": 2020,
     "creditosTotal": 250,
+    "creditosCbc": 38,
     "creditosElectivas": 18
    }
   ]
@@ -73,12 +80,14 @@
     "id": "electronica",
     "ano": 2009,
     "creditosTotal": 278,
+    "creditosCbc": 38,
     "creditosElectivas": 56
    },
    {
     "id": "electronica-2020",
     "ano": 2020,
     "creditosTotal": 228,
+    "creditosCbc": 38,
     "creditosElectivas": 24
    }
   ]
@@ -91,12 +100,14 @@
     "id": "agrimensura",
     "ano": 2006,
     "creditosTotal": 246,
+    "creditosCbc": 38,
     "creditosElectivas": null
    },
    {
     "id": "agrimensura-2020",
     "ano": 2020,
     "creditosTotal": 227,
+    "creditosCbc": 38,
     "creditosElectivas": 16
    }
   ]
@@ -109,12 +120,14 @@
     "id": "informatica",
     "ano": 1986,
     "creditosTotal": 286,
+    "creditosCbc": 38,
     "creditosElectivas": null
    },
    {
     "id": "informatica-2020",
     "ano": 2020,
     "creditosTotal": 226,
+    "creditosCbc": 38,
     "creditosElectivas": 24
    }
   ]
@@ -127,12 +140,14 @@
     "id": "petroleo",
     "ano": 2015,
     "creditosTotal": 284,
+    "creditosCbc": 38,
     "creditosElectivas": null
    },
    {
     "id": "petroleo-2020",
     "ano": 2020,
     "creditosTotal": 241,
+    "creditosCbc": 38,
     "creditosElectivas": 14
    }
   ]
@@ -145,12 +160,14 @@
     "id": "industrial",
     "ano": 2011,
     "creditosTotal": 283,
+    "creditosCbc": 38,
     "creditosElectivas": 36
    },
    {
     "id": "industrial-2020",
     "ano": 2020,
     "creditosTotal": 236,
+    "creditosCbc": 38,
     "creditosElectivas": 24
    }
   ]
@@ -163,12 +180,14 @@
     "id": "mecanica",
     "ano": 1986,
     "creditosTotal": 298,
+    "creditosCbc": 38,
     "creditosElectivas": null
    },
    {
     "id": "mecanica-2020",
     "ano": 2020,
     "creditosTotal": 250,
+    "creditosCbc": 38,
     "creditosElectivas": 14
    }
   ]
@@ -181,12 +200,14 @@
     "id": "naval",
     "ano": 1986,
     "creditosTotal": 302,
+    "creditosCbc": 38,
     "creditosElectivas": null
    },
    {
     "id": "naval-2020",
     "ano": 2020,
     "creditosTotal": 260,
+    "creditosCbc": 38,
     "creditosElectivas": 18
    }
   ]
@@ -199,12 +220,14 @@
     "id": "quimica",
     "ano": 1986,
     "creditosTotal": 290,
+    "creditosCbc": 38,
     "creditosElectivas": null
    },
    {
     "id": "quimica-2020",
     "ano": 2020,
     "creditosTotal": 231,
+    "creditosCbc": 38,
     "creditosElectivas": 14
    }
   ]
@@ -217,12 +240,14 @@
     "id": "sistemasviejo",
     "ano": 1986,
     "creditosTotal": 208,
+    "creditosCbc": 38,
     "creditosElectivas": 40
    },
    {
     "id": "sistemas",
     "ano": 2014,
     "creditosTotal": 214,
+    "creditosCbc": 38,
     "creditosElectivas": 28
    }
   ]

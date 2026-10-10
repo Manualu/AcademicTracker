@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Avatar, Icon, ScreenHead, Sheet } from "../components/ui";
 import {
-  CARRERAS, correlativaOk, creditosAprobados, findPlan, habilitaA, habilitada, isCbc, materiaNombre, planLabel,
+  CARRERAS, correlativaOk, creditosAprobados, creditosCarrera, creditosParaRequisito, findPlan, habilitaA, habilitada, isCbc, materiaNombre, planLabel,
   sections, statusMap, usePlan, type Materia, type StatusMap,
 } from "../lib/planes";
 import { useStore } from "../lib/store";
@@ -32,7 +32,7 @@ function PlanPicker({ onPick, onCancel }: { onPick: (planId: string) => void; on
           <div className="subject-pick">
             {[...c.planes].sort((a, b) => b.ano - a.ano).map((p) => (
               <button key={p.id} onClick={() => onPick(p.id)}>
-                {planLabel(p)}<div className="small muted" style={{ fontWeight: 400 }}>{p.creditosTotal} créditos</div>
+                {planLabel(p)}<div className="small muted" style={{ fontWeight: 400 }}>{creditosCarrera(p)} créditos, sin contar el CBC</div>
               </button>
             ))}
           </div>
@@ -92,7 +92,7 @@ function SubjectSheet({ m, materias, st, editable, onSet, onClose }: {
               {m.correlativas.map((c) => (
                 <li key={c}>{materiaNombre(materias, c)} {correlativaOk(c, materias, st) ? "✓" : <span className="muted">(pendiente)</span>}</li>
               ))}
-              {m.requiereCreditos && <li>{m.requiereCreditos} créditos aprobados (hay {creditosAprobados(materias, st)})</li>}
+              {m.requiereCreditos && <li>{m.requiereCreditos} créditos aprobados{m.requiereCbc ? ", contando el CBC" : ", sin contar el CBC"} (tenés {creditosParaRequisito(m, materias, st)})</li>}
             </ul>
           </div>
         )}
@@ -158,7 +158,7 @@ export default function Carrera() {
   const noCbc = materias.filter((m) => !isCbc(m));
   const aprob = creditosAprobados(materias, st);
   const reg = noCbc.filter((m) => st.get(m.id) === "regularizada").reduce((a, m) => a + m.creditos, 0);
-  const total = found.plan.creditosTotal || noCbc.reduce((a, m) => a + m.creditos, 0);
+  const total = creditosCarrera(found.plan) || noCbc.reduce((a, m) => a + m.creditos, 0);
   const count = (s: SubjectState) => noCbc.filter((m) => st.get(m.id) === s).length;
   const cbc = materias.filter(isCbc);
   const cbcDone = cbc.every((m) => st.get(m.id) === "aprobada");
@@ -171,7 +171,7 @@ export default function Carrera() {
       <section className="card stack" style={{ gap: 10 }}>
         <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
           <span className="num" style={{ fontSize: "2.3rem", lineHeight: 1 }}>{Math.round((aprob / total) * 100)}%</span>
-          <span className="muted">{aprob} de {total} créditos aprobados</span>
+          <span className="muted">{aprob} de {total} créditos aprobados, sin el CBC</span>
         </div>
         <div className="progress" aria-hidden>
           <b style={{ width: `${(aprob / total) * 100}%` }} />
