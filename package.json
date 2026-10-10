@@ -1,0 +1,42 @@
+{
+  "name": "remontada",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:demo": "vite build --mode demo",
+    "preview": "vite preview",
+    "planes": "node scripts/build-planes.mjs"
+  },
+  "dependencies": {
+    "@dicebear/adventurer": "^9.4.2",
+    "@dicebear/big-smile": "^9.4.2",
+    "@dicebear/bottts": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
+    "@dicebear/fun-emoji": "^9.4.2",
+    "@dicebear/lorelei": "^9.4.2",
+    "@dicebear/notionists": "^9.4.2",
+    "@dicebear/pixel-art": "^9.4.2",
+    "@dicebear/thumbs": "^9.4.2",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@supabase/supabase-js": "^2.117.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "5.6",
+    "vite": "^5.4.21",
+    "vite-plugin-pwa": "^0.21.2",
+    "workbox-core": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1"
+  }
+}

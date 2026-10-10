@@ -1,0 +1,230 @@
+[
+ {
+  "nombre": "Ingeniería Civil",
+  "nombreCorto": "Civil",
+  "planes": [
+   {
+    "id": "civil",
+    "ano": 2009,
+    "creditosTotal": 295,
+    "creditosElectivas": 34
+   },
+   {
+    "id": "civil-2020",
+    "ano": 2020,
+    "creditosTotal": 251,
+    "creditosElectivas": 24
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería en Alimentos",
+  "nombreCorto": "Alimentos",
+  "planes": [
+   {
+    "id": "alimentos",
+    "ano": 2001,
+    "creditosTotal": 272,
+    "creditosElectivas": 10
+   },
+   {
+    "id": "alimentos-2020",
+    "ano": 2020,
+    "creditosTotal": 243,
+    "creditosElectivas": 12
+   }
+  ]
+ },
+ {
+  "nombre": "Bioingeniería",
+  "nombreCorto": "Bioingeniería",
+  "planes": [
+   {
+    "id": "bioingenieria-2020",
+    "ano": 2020,
+    "creditosTotal": 250,
+    "creditosElectivas": 16
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería en Energía Eléctrica",
+  "nombreCorto": "Electricista",
+  "planes": [
+   {
+    "id": "electricista",
+    "ano": 2009,
+    "creditosTotal": 280,
+    "creditosElectivas": null
+   },
+   {
+    "id": "energia-electrica-2020",
+    "ano": 2020,
+    "creditosTotal": 250,
+    "creditosElectivas": 18
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería Electrónica",
+  "nombreCorto": "Electrónica",
+  "planes": [
+   {
+    "id": "electronica",
+    "ano": 2009,
+    "creditosTotal": 278,
+    "creditosElectivas": 56
+   },
+   {
+    "id": "electronica-2020",
+    "ano": 2020,
+    "creditosTotal": 228,
+    "creditosElectivas": 24
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería en Agrimensura",
+  "nombreCorto": "Agrimensura",
+  "planes": [
+   {
+    "id": "agrimensura",
+    "ano": 2006,
+    "creditosTotal": 246,
+    "creditosElectivas": null
+   },
+   {
+    "id": "agrimensura-2020",
+    "ano": 2020,
+    "creditosTotal": 227,
+    "creditosElectivas": 16
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería en Informática",
+  "nombreCorto": "Informática",
+  "planes": [
+   {
+    "id": "informatica",
+    "ano": 1986,
+    "creditosTotal": 286,
+    "creditosElectivas": null
+   },
+   {
+    "id": "informatica-2020",
+    "ano": 2020,
+    "creditosTotal": 226,
+    "creditosElectivas": 24
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería en Petróleo",
+  "nombreCorto": "Petróleo",
+  "planes": [
+   {
+    "id": "petroleo",
+    "ano": 2015,
+    "creditosTotal": 284,
+    "creditosElectivas": null
+   },
+   {
+    "id": "petroleo-2020",
+    "ano": 2020,
+    "creditosTotal": 241,
+    "creditosElectivas": 14
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería Industrial",
+  "nombreCorto": "Industrial",
+  "planes": [
+   {
+    "id": "industrial",
+    "ano": 2011,
+    "creditosTotal": 283,
+    "creditosElectivas": 36
+   },
+   {
+    "id": "industrial-2020",
+    "ano": 2020,
+    "creditosTotal": 236,
+    "creditosElectivas": 24
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería Mecánica",
+  "nombreCorto": "Mecánica",
+  "planes": [
+   {
+    "id": "mecanica",
+    "ano": 1986,
+    "creditosTotal": 298,
+    "creditosElectivas": null
+   },
+   {
+    "id": "mecanica-2020",
+    "ano": 2020,
+    "creditosTotal": 250,
+    "creditosElectivas": 14
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería Naval",
+  "nombreCorto": "Naval",
+  "planes": [
+   {
+    "id": "naval",
+    "ano": 1986,
+    "creditosTotal": 302,
+    "creditosElectivas": null
+   },
+   {
+    "id": "naval-2020",
+    "ano": 2020,
+    "creditosTotal": 260,
+    "creditosElectivas": 18
+   }
+  ]
+ },
+ {
+  "nombre": "Ingeniería Química",
+  "nombreCorto": "Química",
+  "planes": [
+   {
+    "id": "quimica",
+    "ano": 1986,
+    "creditosTotal": 290,
+    "creditosElectivas": null
+   },
+   {
+    "id": "quimica-2020",
+    "ano": 2020,
+    "creditosTotal": 231,
+    "creditosElectivas": 14
+   }
+  ]
+ },
+ {
+  "nombre": "Licenciatura en Análisis de Sistemas",
+  "nombreCorto": "Sistemas",
+  "planes": [
+   {
+    "id": "sistemasviejo",
+    "ano": 1986,
+    "creditosTotal": 208,
+    "creditosElectivas": 40
+   },
+   {
+    "id": "sistemas",
+    "ano": 2014,
+    "creditosTotal": 214,
+    "creditosElectivas": 28
+   }
+  ]
+ }
+]

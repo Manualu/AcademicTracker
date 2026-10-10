@@ -1,0 +1,7 @@
+project_id = "remontada"
+
+[functions.notify]
+verify_jwt = false
+
+[functions.scheduled]
+verify_jwt = false
