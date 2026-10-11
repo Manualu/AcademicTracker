@@ -27,7 +27,7 @@ function write(k: string, v: unknown) {
   try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* almacenamiento lleno o bloqueado */ }
 }
 
-export type Toast = { id: string; title: string; body?: string; tone?: "info" | "error" | "success" };
+export type Toast = { id: string; title: string; body?: string; tone?: "info" | "error" | "success"; userId?: string; piece?: PieceKey; icon?: string };
 
 type Store = {
   ready: boolean;
@@ -184,11 +184,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         toast({
           title: `${name} sumó ${fmtMinutes(Number(e.record.minutes))} de ${e.record.subject_name}`,
           body: `Fabricó ${pieceInfo(e.record.piece as PieceKey).article}.`,
+          userId: author,
+          piece: e.record.piece as PieceKey,
         });
       } else if (e.table === "activities") {
-        toast({ title: `${name} hizo actividad física`, body: String(e.record.kind) });
+        toast({ title: `${name} hizo actividad física`, body: String(e.record.kind), userId: author, icon: "run" });
       } else if (e.table === "exams") {
-        toast({ title: `${name} agendó un examen de ${e.record.subject_name}` });
+        toast({ title: `${name} agendó un examen de ${e.record.subject_name}`, userId: author, icon: "calendar" });
       }
     });
     return () => { clearTimeout(timer); off(); };

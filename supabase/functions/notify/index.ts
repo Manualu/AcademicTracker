@@ -3,7 +3,7 @@
 import { checkSecret, formatMinutes, json, profiles, sendTo } from "../_shared/push.ts";
 
 const PIECE_NAMES: Record<string, string> = {
-  tornillo: "un tornillo",
+  tornillo: "un cajón de bulones",
   engranaje: "un engranaje",
   motor: "un motor",
   torno: "un torno",

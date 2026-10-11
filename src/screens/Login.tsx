@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Piece } from "../components/Piece";
+import { IsoFloor } from "../components/IsoFloor";
 import { backend, useStore } from "../lib/store";
 
 export default function Login() {
@@ -39,20 +39,18 @@ export default function Login() {
   }
 
   return (
-    <div className="login">
-      <div className="row" style={{ gap: 6 }}>
-        <Piece piece="engranaje" size={44} />
-        <Piece piece="torno" size={44} />
-        <Piece piece="horno" size={44} />
-      </div>
-      <div>
-        <h1 className="wordmark">Remontada</h1>
-        <p className="muted" style={{ margin: "10px 0 0", maxWidth: 360 }}>
-          Horas de estudio, actividad física y exámenes del grupo, todo a la vista de todos.
-        </p>
-      </div>
+    <div className="login-wrap">
+      <section className="console login-hero">
+        <p className="eyebrow">Tratado de la Remontada · FIUBA</p>
+        <h1 className="wordmark">Remontada<span>.</span></h1>
+        <p>Horas de estudio, actividad física y exámenes del grupo. Todo a la vista de todos.</p>
+        <div style={{ margin: "4px -4px -6px" }}>
+          <IsoFloor pieces={["horno", "torno", "robot", "motor", "engranaje", "tornillo"]} />
+        </div>
+      </section>
+      <div className="login-form stack">
       {backend.isDemo && (
-        <p className="card small" style={{ margin: 0 }}>
+        <p className="callout small" style={{ margin: 0 }}>
           Estás viendo la demo: los datos son de prueba y quedan solo en este navegador. Tocá el botón para entrar.
         </p>
       )}
@@ -88,6 +86,7 @@ export default function Login() {
           {mode === "in" ? "Iniciar sesión" : "Crear cuenta"}
         </button>
       </form>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../lib/store";
 import { addDays, dayKey, uuid } from "../lib/time";
-import { Sheet } from "./ui";
+import { Icon, Sheet } from "./ui";
 
 const KINDS = ["Running", "Gimnasio", "Fútbol", "Bici", "Natación", "Pádel", "Caminata", "Yoga"];
 const DAYS = [{ label: "Hoy", d: 0 }, { label: "Ayer", d: -1 }, { label: "Anteayer", d: -2 }];
@@ -22,19 +22,19 @@ export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () =>
       kind: "activity.add",
       activity: { id: uuid(), userId, kind: finalKind, doneOn: dayKey(addDays(new Date(), day)), minutes: mins, createdAt: new Date().toISOString() },
     });
-    toast({ tone: "success", title: "Actividad registrada", body: "El grupo ya la ve en el inicio." });
+    toast({ tone: "success", title: "Actividad registrada", body: "El grupo ya la ve en el inicio.", icon: "run" });
     onClose();
   }
 
   return (
-    <Sheet open={open} onClose={onClose} label="Registrar actividad física">
-      <div className="stack">
-        <h2 className="h2">Registrar actividad física</h2>
+    <Sheet open={open} onClose={onClose} label="Registrar actividad física" title="Actividad física" eyebrow="Meta: 3 por semana">
+      <div className="stack" style={{ gap: 16 }}>
+        <div className="field"><span>Qué hiciste</span>
         <div className="chips" role="group" aria-label="Tipo">
           {[...KINDS, "Otra"].map((k) => (
             <button key={k} className="chip" aria-pressed={kind === k} onClick={() => setKind(k)}>{k}</button>
           ))}
-        </div>
+        </div></div>
         {kind === "Otra" && (
           <input className="input" placeholder="¿Qué hiciste?" value={other} onChange={(e) => setOther(e.target.value)} maxLength={40} autoFocus />
         )}
@@ -51,7 +51,7 @@ export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () =>
             <button className="chip" aria-pressed={mins === null} onClick={() => setMins(null)}>Sin dato</button>
           </div>
         </div>
-        <button className="btn primary big block" onClick={save} disabled={!finalKind}>Registrar actividad</button>
+        <button className="btn primary big block" onClick={save} disabled={!finalKind}><Icon name="check" size={20} stroke={2.6} />Registrar {finalKind ? finalKind.toLowerCase() : "actividad"}</button>
       </div>
     </Sheet>
   );
