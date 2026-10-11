@@ -1258,3 +1258,9 @@ body.focus .nav { display: none; }
 .group-cta { margin: 12px 0 4px; border-style: dashed; color: var(--blue); }
 .group-cta svg { color: var(--blue); }
 .legend .group, .legend i.group { background: var(--blue); }
+
+/* La ficha técnica se abre ARRIBA del cajón, y los avisos también se ven */
+.reveal ~ .sheet-backdrop { z-index: 70; }
+/* La hoja siempre con su propio color de texto (en Estudiar el fondo es oscuro y el texto heredaba blanco) */
+.sheet { color: var(--ink); }
+.toasts { z-index: 80; }
