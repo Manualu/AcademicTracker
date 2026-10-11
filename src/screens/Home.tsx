@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ActivitySheet } from "../components/ActivitySheet";
 import { IsoPiece } from "../components/IsoPiece";
 import { ParkCanvas, useParkWorld } from "../components/ParkCanvas";
-import { STAGES, stageIdx } from "../iso/park";
-import { useParkMilestones } from "./Parque";
+import { celebrate, clearSelection, lotOf, STAGES, stageIdx, type ParkScene, type ParkSelection } from "../iso/park";
+import { pieceDef, RARITY, type Rarity } from "../lib/catalog";
+import { PieceSheet } from "../components/PieceSheet";
+import { inventoryOf } from "../lib/catalog";
+import { Inspector, useParkMilestones } from "./Parque";
 import { Avatar, Icon, isoWeek, Ring } from "../components/ui";
 import { buildFeed, type FeedItem } from "../lib/feed";
 import { activitiesOf, sessionsOf, weekActivities, weekMinutes, weekSummary } from "../lib/stats";
@@ -68,6 +71,25 @@ const KIND_ICON: Record<FeedItem["kind"], [string, string] | null> = {
   subject: ["k-mat", "check"],
 };
 
+/** Festeja sobre su nave cada sesión nueva que llega (de cualquiera del grupo). */
+function useDeliveries(sessions: { id: string; userId: string; piece: string; outcome: string; createdAt: string }[]) {
+  const seen = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const fresh = (iso: string) => { const d = Date.now() - new Date(iso).getTime(); return d >= 0 && d < 90_000; };
+    if (!seen.current) {
+      // Al entrar: festejamos solo lo recién terminado (por ejemplo, la sesión que acabás de cerrar)
+      seen.current = new Set(sessions.filter((x) => !fresh(x.createdAt)).map((x) => x.id));
+    }
+    const nuevos = sessions.filter((x) => !seen.current!.has(x.id));
+    nuevos.forEach((x, i) => {
+      seen.current!.add(x.id);
+      const scrap = x.outcome === "abandoned";
+      const d = pieceDef(scrap ? "chatarra" : x.piece);
+      window.setTimeout(() => celebrate(x.userId, scrap ? "Chatarra" : `+ ${d.n}`, scrap ? "#9AA2AC" : RARITY[d.r as Rarity].color), 900 + i * 1400);
+    });
+  }, [sessions]);
+}
+
 export default function Home() {
   const { data, userId } = useStore();
   const me = useMe();
@@ -108,9 +130,34 @@ export default function Home() {
   const hour = now.getHours();
   const greet = hour < 6 ? "Buenas noches" : hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  const weekPieces = [...week.weekSessions].sort((a, b) => a.startedAt.localeCompare(b.startedAt)).map((s) => (s.outcome === "abandoned" ? "chatarra" : s.piece));
   const world = useParkWorld();
   useParkMilestones(world);
+  useDeliveries(data.sessions);
+  const scene = useRef<ParkScene | null>(null);
+  const parkRef = useRef<HTMLElement>(null);
+  const [sel, setSel] = useState<ParkSelection | null>(null);
+  const [ficha, setFicha] = useState<{ id: string; owner: string } | null>(null);
+  const focusOn = (id: string, z = 1.7) => {
+    const lot = lotOf(id);
+    if (lot) scene.current?.focus(lot[0] + 1.6, lot[1] + 1.8, z);
+  };
+  // Al entrar, la cámara va a tu nave
+  useEffect(() => {
+    const t = window.setTimeout(() => userId && focusOn(userId, 1.45), 350);
+    return () => window.clearTimeout(t);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => clearSelection(), []);
+  useEffect(() => { if (import.meta.env.DEV) (window as unknown as { __park?: unknown }).__park = scene.current; });
+  // Si el panel tapa el parque, se deja de dibujar (ahorra batería)
+  useEffect(() => {
+    const onScroll = () => {
+      scene.current?.setVisible(window.scrollY < window.innerHeight * 0.55);
+      parkRef.current?.classList.toggle("scrolled", window.scrollY > 30);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const studying = world.friends.filter((f) => f.live);
   const stage = stageIdx(world.groupHours);
   const nextStage = STAGES[stage + 1];
   const leader = crew[0];
@@ -119,14 +166,45 @@ export default function Home() {
 
   return (
     <>
-      <header className="hello">
-        <div className="grow">
-          <p className="eyebrow">{dateTag} · Semana {isoWeek()}</p>
-          <h1 className="h1" style={{ marginTop: 8 }}>{greet}, {me?.displayName ?? "…"}</h1>
+      <section className="home-park" aria-label="Parque del grupo" ref={parkRef}>
+        <ParkCanvas sceneRef={scene} onSelect={setSel} label="Parque industrial del grupo. Arrastrá, hacé zoom y tocá a cada uno." />
+        <div className="hp-top">
+          <Link to={`/perfil/${userId}`} aria-label="Mi perfil" className="hp-me">
+            <Avatar profile={me} size={40} />
+            <span className="grow">
+              <span className="eyebrow">{dateTag} · Semana {isoWeek()}</span>
+              <b>{greet}, {me?.displayName ?? "…"}</b>
+            </span>
+          </Link>
+          <div className="hp-tools">
+            <button className="icon-btn boxed" onClick={() => userId && focusOn(userId, 1.7)} aria-label="Ir a mi nave"><Icon name="pin" size={19} /></button>
+            <button className="icon-btn boxed" onClick={() => scene.current?.recenter()} aria-label="Ver todo el parque"><Icon name="fit" size={19} /></button>
+            <Link to="/parque" className="icon-btn boxed" aria-label="Mi nave, catálogo y etapas"><Icon name="factory" size={19} /></Link>
+          </div>
         </div>
-        <Link to={`/perfil/${userId}`} aria-label="Mi perfil" className="avatar-link"><Avatar profile={me} size={46} /></Link>
-      </header>
+        <div className="hp-strip">
+          <Link to="/parque?tab=etapas" className="hp-chip">
+            <span className="eyebrow">Etapa {stage + 1}/{STAGES.length} · {Math.round(world.groupHours)} h</span>
+            <b className="ellipsis">{STAGES[stage].n}</b>
+            {nextStage && <span className="mini-bar"><b style={{ width: `${((world.groupHours - STAGES[stage].h) / (nextStage.h - STAGES[stage].h)) * 100}%` }} /></span>}
+          </Link>
+          {studying.length > 0 && (
+            <div className="hp-live" role="group" aria-label="Estudiando ahora">
+              <span className="eyebrow"><span className="dotlive" /> Ahora</span>
+              {studying.map((f) => (
+                <button key={f.id} onClick={() => { focusOn(f.id, 2); setSel({ k: "nave", f: { ...f, lot: lotOf(f.id) ?? [0, 0] } }); }} aria-label={`${f.n} está estudiando ${f.live!.subject}`}>
+                  <img src={f.avatar} alt="" style={{ background: f.col }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {sel && <Inspector sel={sel} world={world} onClose={() => { setSel(null); clearSelection(); }} onFicha={(id, owner) => setFicha({ id, owner })} />}
+      </section>
 
+      <div className="home-sheet">
+      <button className="sheet-grip-btn" aria-label="Ver tu semana y el grupo"
+        onClick={() => window.scrollTo({ top: window.scrollY > 40 ? 0 : window.innerHeight * 0.62, behavior: "smooth" })}><span /></button>
       <section className="console" aria-labelledby="semana">
         <div className="wk-top">
           <p className="eyebrow" id="semana">Estudio · meta 14 h</p>
@@ -232,38 +310,6 @@ export default function Home() {
         );
       })()}
 
-      <div className="section-title">
-        <h2 className="h2">Parque del grupo</h2>
-        <Link to="/parque" className="link">Abrir</Link>
-      </div>
-      <Link to="/parque" className="park-card" aria-label={`Abrir el parque. Etapa ${stage + 1}: ${STAGES[stage].n}`}>
-        <div className="park-preview">
-          <ParkCanvas compact label="Vista del parque industrial del grupo" />
-          <div className="pp-hud">
-            <span className="pp-chip"><span className="eyebrow">Etapa {stage + 1}/{STAGES.length}</span><b>{STAGES[stage].n}</b></span>
-            <span className="pp-chip num">{Math.round(world.groupHours)} h</span>
-          </div>
-          <span className="pp-open">Entrar al parque <Icon name="next" size={16} stroke={2.4} /></span>
-        </div>
-        <div className="pp-foot">
-          {nextStage ? (
-            <>
-              <div className="mini-bar"><b style={{ width: `${((world.groupHours - STAGES[stage].h) / (nextStage.h - STAGES[stage].h)) * 100}%` }} /></div>
-              <p className="tiny muted" style={{ margin: "6px 0 0" }}>Faltan <b>{Math.ceil(nextStage.h - world.groupHours)} h</b> del grupo para: {nextStage.n}</p>
-            </>
-          ) : <p className="tiny muted" style={{ margin: 0 }}>Parque completo.</p>}
-          <div className="week-strip">
-            <span className="eyebrow">Tu semana</span>
-            {weekPieces.length === 0 ? <span className="tiny muted">Todavía no fabricaste nada.</span> : (
-              <span className="strip">
-                {weekPieces.slice(-7).reverse().map((p, i) => <IsoPiece key={i} piece={p} size={34} height={30} />)}
-                {weekPieces.length > 7 && <span className="more">+{weekPieces.length - 7}</span>}
-              </span>
-            )}
-          </div>
-        </div>
-      </Link>
-
       <div className="section-title"><h2 className="h2">Movimiento del grupo</h2></div>
       <div className="card tight">
         {feed.length === 0 ? (
@@ -298,7 +344,10 @@ export default function Home() {
         <button className="btn block" style={{ marginTop: 12 }} onClick={() => setFeedLen(feedLen + 20)}>Ver más movimiento</button>
       )}
 
+      </div>
       <ActivitySheet open={actOpen} onClose={() => setActOpen(false)} />
+      <PieceSheet piece={ficha?.id ?? null} count={ficha ? inventoryOf(data, ficha.owner).get(ficha.id) ?? 0 : 0}
+        owner={ficha ? (ficha.owner === userId ? "Vos" : data.profiles.find((p) => p.id === ficha.owner)?.displayName ?? "") : ""} onClose={() => setFicha(null)} />
     </>
   );
 }

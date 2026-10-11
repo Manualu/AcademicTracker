@@ -49,7 +49,29 @@ const has = (h, id) => h >= STAGES.find((s) => s.id === id).h;
 const boundsFor = (h) => (h >= 800 ? [0, 20] : h >= 450 ? [1, 19] : h >= 160 ? [3, 17] : [5, 15]);
 
 // ---------------------------------------------------------------- Estado
-const STATE = { light: "auto", selected: null, groupHours: 0 };
+const STATE = { light: "auto", selected: null, groupHours: 0, deliveries: [], meId: null };
+
+// Caras de los personajes: el avatar de cada uno (data URI de DiceBear), cacheado como imagen
+const AVATARS = new Map();
+function avatarImg(uri) {
+  if (!uri) return null;
+  let img = AVATARS.get(uri);
+  if (!img) { img = new Image(); img.decoding = "async"; img.src = uri; AVATARS.set(uri, img); }
+  return img.complete && img.naturalWidth ? img : null;
+}
+
+/** Festejo sobre la nave de alguien: un cartel que sube ("+ Motor trifásico IE3") y chispas. */
+export function celebrate(friendId, text, color = "#FFC21A") {
+  const f = FRIENDS.find((x) => x.id === friendId);
+  if (!f) return;
+  STATE.deliveries.push({ f, text, color, t0: performance.now() });
+  const [lx, ly] = f.lot;
+  for (let k = 0; k < 16; k++) emit(lx + 1 + (Math.random() - 0.5) * 2, ly + 1.5 + (Math.random() - 0.5) * 2, 0.1, "polvo");
+  if (!REDUCE) {
+    const z = 2.6;
+    for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2, e = Math.random() * 0.4 + 0.5; FIREWORKS.push({ x: lx + 1, y: ly + 1.5, z, vx: Math.cos(a) * e, vy: -Math.cos(a) * e * 0.2, vz: Math.sin(a) * e + 0.4, life: 1.2, col: i % 3 ? color : "#FFFFFF" }); }
+  }
+}
 const RANK = { comun: 0, rara: 1, epica: 2, legendaria: 3 };
 const GH = () => STATE.groupHours;
 const friendHours = (f) => f.hours;
@@ -58,10 +80,14 @@ const friendHours = (f) => f.hours;
  * Carga los datos reales del grupo.
  * friends: [{ id, n, col, hours, closed, flag, inv }] (en orden: los primeros cuatro tienen lote)
  */
-export function setWorld({ friends, groupHours }) {
+export function setWorld({ friends, groupHours, meId }) {
   FRIENDS = friends.slice(0, LOTS.length).map((f, i) => ({ ...f, lot: LOTS[i] }));
   STATE.groupHours = groupHours;
+  STATE.meId = meId ?? null;
+  for (const d of STATE.deliveries) d.f = FRIENDS.find((x) => x.id === d.f.id) ?? d.f;
 }
+/** Lote de una persona (para centrar la cámara en su nave). */
+export function lotOf(friendId) { return FRIENDS.find((f) => f.id === friendId)?.lot ?? null; }
 export function setLight(mode) { STATE.light = mode; }
 export function getLight() { return STATE.light; }
 export function clearSelection() { STATE.selected = null; }
@@ -458,6 +484,65 @@ function scaled(F, s) {
   };
 }
 
+// ---------------------------------------------------------------- Personajes del grupo
+// Cada persona tiene un muñequito con su avatar, en el patio de entrada de su nave.
+// mode: "idle" (parado), "sit" (sentado en un banco: nave apagada), "jog" (hizo actividad física hoy)
+function character(F, P, f, x, y, t, mode, me) {
+  const s = 1.85;
+  const sitting = mode === "sit";
+  const bob = REDUCE ? 0 : mode === "jog" ? Math.abs(Math.sin(t * 9)) * 0.035 : Math.sin(t * 1.6 + x) * 0.006;
+  if (sitting) {
+    F.box(x - 0.2, y + 0.06, 0, 0.4, 0.12, 0.12, "#8C6B4A", { o: -0.01 });
+    F.box(x - 0.2, y + 0.16, 0.12, 0.4, 0.03, 0.14, "#7A5A44", { o: -0.005 });
+  }
+  F.fn(x, y, 0, (S) => {
+    const c = P.ctx;
+    const [gx, gy] = S(x, y, 0);
+    const u = P.tw / 64;
+    if (me) {
+      const pr = REDUCE ? 1 : 1 + Math.sin(t * 3) * 0.12;
+      c.save(); c.translate(gx, gy); c.scale(1, 0.5);
+      c.beginPath(); c.arc(0, 0, 13 * u * pr, 0, Math.PI * 2);
+      c.fillStyle = "rgba(255,194,26,.28)"; c.fill(); c.lineWidth = 2; c.strokeStyle = "#FFC21A"; c.stroke();
+      c.restore();
+    } else {
+      c.save(); c.translate(gx, gy); c.scale(1, 0.5); c.beginPath(); c.arc(0, 0, 8 * u, 0, Math.PI * 2); c.fillStyle = "rgba(16,28,52,.22)"; c.fill(); c.restore();
+    }
+    const zz = (z) => S(x, y, z * s + bob)[1];
+    const hip = sitting ? 0.13 : 0.15, shoulder = sitting ? 0.3 : 0.32, headZ = sitting ? 0.43 : 0.45;
+    c.lineCap = "round";
+    // piernas
+    c.strokeStyle = P.col("#26324A"); c.lineWidth = Math.max(1.5, 3 * u * s);
+    const sw = mode === "jog" && !REDUCE ? Math.sin(t * 9) * 3 * u : 0;
+    if (sitting) {
+      c.beginPath(); c.moveTo(gx - 2 * u, zz(hip)); c.lineTo(gx - 6 * u, zz(hip) + 2 * u); c.lineTo(gx - 6 * u, gy); c.stroke();
+      c.beginPath(); c.moveTo(gx + 2 * u, zz(hip)); c.lineTo(gx + 1 * u, zz(hip) + 3 * u); c.lineTo(gx + 1 * u, gy + 1 * u); c.stroke();
+    } else {
+      c.beginPath(); c.moveTo(gx - 1.6 * u, zz(hip)); c.lineTo(gx - 1.6 * u + sw, gy - bob * P.zh); c.stroke();
+      c.beginPath(); c.moveTo(gx + 1.6 * u, zz(hip)); c.lineTo(gx + 1.6 * u - sw, gy - bob * P.zh); c.stroke();
+    }
+    // torso con el color de la persona
+    c.strokeStyle = P.col(f.col); c.lineWidth = Math.max(3, 7 * u * s);
+    c.beginPath(); c.moveTo(gx, zz(hip + 0.02)); c.lineTo(gx, zz(shoulder)); c.stroke();
+    // brazos
+    c.strokeStyle = P.col(shade(f.col, -0.15)); c.lineWidth = Math.max(1.2, 2.4 * u * s);
+    const arm = mode === "jog" && !REDUCE ? Math.cos(t * 9) * 3 * u : 0;
+    c.beginPath(); c.moveTo(gx - 3.5 * u * s, zz(shoulder - 0.01)); c.lineTo(gx - 4.5 * u * s + arm, zz(hip + 0.03)); c.stroke();
+    c.beginPath(); c.moveTo(gx + 3.5 * u * s, zz(shoulder - 0.01)); c.lineTo(gx + 4.5 * u * s - arm, zz(hip + 0.03)); c.stroke();
+    // cabeza: el avatar
+    const r = Math.max(6, 8 * u * s);
+    const hy = zz(headZ) - r * 0.35;
+    c.beginPath(); c.arc(gx, hy, r + 1.6, 0, Math.PI * 2); c.fillStyle = me ? "#FFC21A" : "#FFFFFF"; c.fill();
+    const img = avatarImg(f.avatar);
+    c.save(); c.beginPath(); c.arc(gx, hy, r, 0, Math.PI * 2); c.clip();
+    if (img) { c.fillStyle = f.col; c.fill(); c.drawImage(img, gx - r, hy - r, r * 2, r * 2); }
+    else { c.fillStyle = "#E8C1A0"; c.fill(); }
+    c.restore();
+    c.beginPath(); c.arc(gx, hy, r + 1.6, 0, Math.PI * 2); c.lineWidth = 1; c.strokeStyle = "rgba(16,28,52,.55)"; c.stroke();
+    if (P.night > 0.5) { c.beginPath(); c.arc(gx, hy, r, 0, Math.PI * 2); c.fillStyle = `rgba(8,18,40,${(P.night - 0.5) * 0.5})`; c.fill(); }
+  }, { o: 0.3 });
+}
+
 // ---------------------------------------------------------------- Gente
 function person(F, x, y, z, shirt, t, sitting, P, helmet) {
   const bob = REDUCE || sitting ? 0 : Math.abs(Math.sin(t * 8)) * 0.02;
@@ -548,8 +633,8 @@ function drawParticles(P) {
 // Fuegos artificiales (etapa final)
 const FIREWORKS = [];
 function stepFireworks(dt, H) {
-  if (REDUCE || !has(H, "polo")) { FIREWORKS.length = 0; return; }
-  if (Math.random() < dt * 0.9) {
+  if (REDUCE) { FIREWORKS.length = 0; return; }
+  if (has(H, "polo") && Math.random() < dt * 0.9) {
     const x = 4 + Math.random() * 12, y = 4 + Math.random() * 12, z = 5 + Math.random() * 2;
     const col = ["#FFC21A", "#FF5A8A", "#4FC3F7", "#7CFFB2", "#FFFFFF"][Math.floor(Math.random() * 5)];
     for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2, e = Math.random() * 0.5 + 0.6; FIREWORKS.push({ x, y, z, vx: Math.cos(a) * e, vy: -Math.cos(a) * e * 0.2, vz: Math.sin(a) * e, life: 1.4, col }); }
@@ -692,10 +777,33 @@ export function createScene(opts = {}) {
       const [lx, ly] = f.lot;
       const fd = form >= 4 ? 4 : form === 0 ? 2 : 3;
       const topZ = [1.1, 1.35, 1.45, 1.9, 2.4, 4.7][form];
+      const live = !!f.live && !closed;
       E.push({ id: `nave:${f.id}:${form}:${closed}`, anim: form >= 5 && !closed, x0: lx, y0: ly, w: 2, d: fd, h: topZ, raw: true, info: { k: "nave", f }, draw: () => drawNave(P, f, form, closed, t), label: { f, z: topZ, lvl, closed } });
       if (!closed && dt > 0) {
         const chim = form === 0 ? null : form === 1 ? [lx + 0.4, ly + 0.5, 1.7] : [lx + 0.35, ly + 0.4, 2.35];
-        if (chim && Math.random() < dt * 2.2) emit(chim[0], chim[1], chim[2], "chimenea");
+        if (chim && Math.random() < dt * (live ? 6 : 2.2)) emit(chim[0], chim[1], chim[2], live ? "vapor" : "chimenea");
+      }
+      // Personaje: adentro de la nave si está estudiando, si no en el patio de entrada
+      const me = f.id === STATE.meId;
+      if (live) {
+        const bx = lx + 1, by = ly + 1.4, bz = topZ + 0.12;
+        E.push({ x0: bx - 0.1, y0: by - 0.1, w: 0.2, d: 0.2, h: bz + 0.2, dyn: true, info: { k: "nave", f }, draw: (F) => {
+          const on = REDUCE || Math.sin(t * 5) > -0.2;
+          F.cyl(bx, by, bz - 0.12, 0.05, 0.12, K.DARK);
+          F.dot(bx, by, bz + 0.04, 0.05, on ? "#FFC21A" : "#7A5A10", { em: true, raw: true });
+          F.glow(bx, by, bz + 0.04, 0.9, "rgba(255,194,26,ALPHA)", on ? 0.45 : 0.15);
+        } });
+      } else {
+        let mode = closed ? "sit" : f.active ? "jog" : "idle";
+        // En la vereda frente a su lote: adelante no hay nada que lo tape
+        let cx = lx + 4.25, cy = ly + 1.6;
+        if (mode === "jog") {
+          const per = 15.2, k = REDUCE ? 2 : (t * 0.45 + FRIENDS.indexOf(f) * 3.1) % per;
+          const a = lx - 0.2, b = lx + 4.2, c2 = ly - 0.2, d = ly + 4.2;
+          if (k < 3.8) { cx = a + k * ((b - a) / 3.8); cy = d; } else if (k < 7.6) { cx = b; cy = d - (k - 3.8) * ((d - c2) / 3.8); }
+          else if (k < 11.4) { cx = b - (k - 7.6) * ((b - a) / 3.8); cy = c2; } else { cx = a; cy = c2 + (k - 11.4) * ((d - c2) / 3.8); }
+        }
+        E.push({ x0: cx - 0.15, y0: cy - 0.15, w: 0.3, d: 0.3, h: 0.9, depth: cx + cy + 0.2, dyn: true, person: true, info: { k: "nave", f }, draw: (F) => character(F, P, f, cx, cy, t, mode, me) });
       }
       const show = showcase(f, slotsFor(form).length);
       show.forEach(({ p, n }, i) => {
@@ -772,6 +880,25 @@ export function createScene(opts = {}) {
     }
   }
 
+  function deliveries(P) {
+    const c = P.ctx, now = performance.now();
+    STATE.deliveries = STATE.deliveries.filter((d) => now - d.t0 < 4800);
+    for (const d of STATE.deliveries) {
+      const k = (now - d.t0) / 4800;
+      const [lx, ly] = d.f.lot;
+      const [sx, sy] = P.S(lx + 1, ly + 1.5, 2.2 + k * 1.6);
+      c.save();
+      c.globalAlpha = k < 0.1 ? k / 0.1 : k > 0.8 ? (1 - k) / 0.2 : 1;
+      c.font = `700 13px "IBM Plex Sans", system-ui, sans-serif`;
+      const tw = c.measureText(d.text).width, w = tw + 26, h = 28;
+      c.translate(sx, sy); const sc = 0.9 + Math.min(1, k * 6) * 0.15; c.scale(sc, sc);
+      c.beginPath(); c.roundRect(-w / 2, -h / 2, w, h, 10); c.fillStyle = "#14213D"; c.fill(); c.lineWidth = 2; c.strokeStyle = d.color; c.stroke();
+      c.fillStyle = d.color; c.beginPath(); c.arc(-w / 2 + 12, 0, 4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#FFFFFF"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(d.text, -w / 2 + 20, 0.5);
+      c.restore();
+    }
+  }
+
   function labels(P, E, L) {
     const c = P.ctx;
     const lead = leader();
@@ -784,31 +911,47 @@ export function createScene(opts = {}) {
       c.translate(x0s, y0s); c.scale(sc, sc);
       const x = 0, y = 0;
       const night = L.night > 0.45;
-      const txt = closed ? `${f.n} · cerrado hoy` : `${f.n}`;
+      const live = f.live && !closed ? f.live : null;
+      const txt = closed ? `${f.n} · apagada` : `${f.n}`;
       c.font = `700 ${12}px "IBM Plex Sans", system-ui, sans-serif`;
       const tw = c.measureText(txt).width;
       const lvlTxt = `Nv ${lvl}`;
       c.font = `800 11px "Bricolage Grotesque", system-ui, sans-serif`;
       const lw = c.measureText(lvlTxt).width + 10;
-      const w = tw + lw + 24, h = 24;
+      let liveTxt = "";
+      if (live) {
+        const m = Math.max(0, Math.floor((Date.now() - live.startedAt) / 60000));
+        liveTxt = `${live.subject.length > 22 ? live.subject.slice(0, 21) + "…" : live.subject} · ${m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min"}`;
+      }
+      c.font = `600 11px "IBM Plex Sans", system-ui, sans-serif`;
+      const ltw = live ? c.measureText(liveTxt).width + 30 : 0;
+      const w = Math.max(tw + lw + 24, ltw), h = live ? 42 : 24;
       const x0 = x - w / 2, y0 = y - h;
       c.fillStyle = closed ? (night ? "#2A3346" : "#E3E9EF") : night ? "#15335C" : "#FFFFFF";
       c.strokeStyle = night ? "#DCE6F3" : "#14213D"; c.lineWidth = 1.5;
       c.beginPath(); c.roundRect(x0, y0, w, h, 8); c.fill(); c.stroke();
       c.beginPath(); c.moveTo(x - 5, y0 + h); c.lineTo(x, y0 + h + 6); c.lineTo(x + 5, y0 + h); c.closePath(); c.fill(); c.stroke();
       c.fillStyle = c.fillStyle; c.beginPath(); c.fillRect(x - 4.5, y0 + h - 1.6, 9, 2.4);
-      c.beginPath(); c.arc(x0 + 11, y0 + h / 2, 5, 0, Math.PI * 2); c.fillStyle = closed ? "#9AA2AC" : f.col; c.fill(); c.strokeStyle = "#14213D"; c.lineWidth = 1; c.stroke();
+      const r1 = y0 + 12;
+      c.beginPath(); c.arc(x0 + 11, r1, 5, 0, Math.PI * 2); c.fillStyle = closed ? "#9AA2AC" : f.col; c.fill(); c.strokeStyle = "#14213D"; c.lineWidth = 1; c.stroke();
       c.font = `700 12px "IBM Plex Sans", system-ui, sans-serif`; c.textAlign = "left"; c.textBaseline = "middle";
-      c.fillStyle = night ? "#F1F5FA" : "#14213D"; c.fillText(txt, x0 + 20, y0 + h / 2 + 0.5);
-      c.fillStyle = "#14213D"; c.beginPath(); c.roundRect(x0 + 20 + tw + 4, y0 + 4, lw, h - 8, 6); c.fillStyle = closed ? "#9AA2AC" : "#FFC21A"; c.fill();
-      c.font = `800 11px "Bricolage Grotesque", system-ui, sans-serif`; c.fillStyle = "#14213D"; c.textAlign = "center"; c.fillText(lvlTxt, x0 + 20 + tw + 4 + lw / 2, y0 + h / 2 + 0.5);
+      c.fillStyle = night ? "#F1F5FA" : "#14213D"; c.fillText(txt, x0 + 20, r1 + 0.5);
+      c.beginPath(); c.roundRect(x0 + 20 + tw + 4, y0 + 4, lw, 16, 6); c.fillStyle = closed ? "#9AA2AC" : "#FFC21A"; c.fill();
+      c.font = `800 11px "Bricolage Grotesque", system-ui, sans-serif`; c.fillStyle = "#14213D"; c.textAlign = "center"; c.fillText(lvlTxt, x0 + 20 + tw + 4 + lw / 2, r1 + 0.5);
+      if (live) {
+        const r2 = y0 + 31, blink = REDUCE || Math.sin(performance.now() / 300) > -0.3;
+        c.beginPath(); c.roundRect(x0 + 4, y0 + 22, w - 8, 17, 6); c.fillStyle = night ? "#0A1A36" : "#14213D"; c.fill();
+        c.beginPath(); c.arc(x0 + 13, r2, 3.5, 0, Math.PI * 2); c.fillStyle = blink ? "#FF4D4D" : "#7A2626"; c.fill();
+        c.font = `600 11px "IBM Plex Sans", system-ui, sans-serif`; c.textAlign = "left"; c.fillStyle = "#FFC21A"; c.fillText(liveTxt, x0 + 22, r2 + 0.5);
+      }
       if (f === lead && !closed) {
         const cx = x0 + w - 2, cy = y0 - 2;
         c.save(); c.translate(cx, cy); c.rotate(0.3);
         c.beginPath(); c.moveTo(-9, 4); c.lineTo(-9, -5); c.lineTo(-4.5, -1); c.lineTo(0, -8); c.lineTo(4.5, -1); c.lineTo(9, -5); c.lineTo(9, 4); c.closePath();
         c.fillStyle = "#FFC21A"; c.fill(); c.strokeStyle = "#14213D"; c.lineWidth = 1.2; c.stroke(); c.restore();
       }
-      if (STATE.selected?.k === "nave" && STATE.selected.f === f) { c.strokeStyle = "#FFC21A"; c.lineWidth = 3; c.beginPath(); c.roundRect(x0 - 3, y0 - 3, w + 6, h + 6, 10); c.stroke(); }
+      if (f.id === STATE.meId && !(STATE.selected?.k === "nave" && STATE.selected.f?.id === f.id)) { c.strokeStyle = "#FFC21A"; c.lineWidth = 2.5; c.beginPath(); c.roundRect(x0 - 2, y0 - 2, w + 4, h + 4, 9); c.stroke(); }
+      if (STATE.selected?.k === "nave" && STATE.selected.f?.id === f.id) { c.strokeStyle = "#FFC21A"; c.lineWidth = 3; c.beginPath(); c.roundRect(x0 - 3, y0 - 3, w + 6, h + 6, 10); c.stroke(); }
       c.restore();
     }
   }
@@ -905,17 +1048,18 @@ export function createScene(opts = {}) {
     if (dt > 0) { stepParticles(dt); stepFireworks(dt, GH()); }
     drawParticles(P); drawFireworks(P);
     labels(P, E, L);
+    deliveries(P);
     if (L.night > 0) { ctx.fillStyle = `rgba(8,18,40,${L.night * 0.08})`; ctx.fillRect(0, 0, W, H); }
   }
 
   // Cuadros por segundo adaptativos: si el celular tarda en dibujar, se dibuja menos seguido.
-  let avgCost = 8, onScreen = true, drawnOnce = false;
+  let avgCost = 8, onScreen = true, drawnOnce = false, manualHidden = false;
   function loop(ms) {
     const t = ms / 1000;
     const dt = lastT ? Math.min(0.1, t - lastT) : 0;
     lastT = t; acc += dt;
     const interval = Math.max(1 / 30, Math.min(1 / 12, (avgCost * 2.2) / 1000));
-    if ((onScreen || !drawnOnce) && (acc >= interval || REDUCE || !drawnOnce)) {
+    if (((onScreen && !manualHidden) || !drawnOnce) && (acc >= interval || REDUCE || !drawnOnce)) {
       drawnOnce = true;
       timeNow = t;
       const c0 = performance.now();
@@ -1007,6 +1151,8 @@ export function createScene(opts = {}) {
       };
     },
     destroy() { cleanup?.(); },
+    /** Pausar cuando algo tapa el parque (por ejemplo, el panel del inicio). */
+    setVisible(v) { manualHidden = !v; },
     start() { running = true; lastT = 0; cancelAnimationFrame(raf); if (REDUCE) render(0, 0); else raf = requestAnimationFrame(loop); },
     redraw() { if (REDUCE) render(timeNow, 0); },
     zoomBy(f) { cam.tz = Math.max(0.55, Math.min(3.5, (cam.tz ?? cam.zoom) * f)); cam.tx = cam.tx ?? cam.cx; cam.ty = cam.ty ?? cam.cy; cam.userMoved = true; if (REDUCE) { cam.zoom = cam.tz; render(timeNow, 0); } },

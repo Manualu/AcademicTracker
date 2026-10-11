@@ -1184,3 +1184,60 @@ body.focus .nav { display: none; }
 .light-btn { position: relative; }
 .light-tag { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); white-space: nowrap; padding: 5px 9px; border-radius: 9px; background: var(--con); color: var(--con-ink); font-size: 0.75rem; font-weight: 600; animation: fade 160ms ease-out; pointer-events: none; }
 .week-strip .eyebrow { white-space: nowrap; }
+
+/* ==========================================================================
+   Inicio inmersivo: el parque de fondo y el contenido en un panel que sube
+   ========================================================================== */
+:root { --park-h: 70dvh; }
+.home-park {
+  position: fixed; left: 0; right: 0; top: 0; height: var(--park-h); z-index: 0;
+  background: #8fcdf0; overflow: hidden;
+}
+.home-park .park-canvas { cursor: grab; }
+.hp-top { position: absolute; left: 12px; right: 12px; top: calc(10px + env(safe-area-inset-top)); display: flex; gap: 8px; align-items: flex-start; pointer-events: none; }
+.hp-top > * { pointer-events: auto; }
+.hp-me, .hp-chip, .hp-live {
+  display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--hair); box-shadow: var(--elev); border-radius: 18px;
+}
+.hp-me { flex: 1; min-width: 0; padding: 6px 12px 6px 6px; }
+.hp-me > span { display: flex; flex-direction: column; min-width: 0; }
+.hp-me b { font-family: var(--display); font-size: 1.02rem; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-me .eyebrow { font-size: 0.6rem; }
+.hp-tools { display: flex; flex-direction: column; gap: 6px; }
+.hp-tools .icon-btn { width: 40px; height: 40px; background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(10px); box-shadow: var(--elev); color: var(--ink); }
+.hp-strip { position: absolute; left: 12px; right: 60px; top: calc(66px + env(safe-area-inset-top)); display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; pointer-events: none; }
+.hp-strip > * { pointer-events: auto; }
+.hp-chip { flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 11px 8px; max-width: 220px; }
+.hp-chip b { font-size: 0.85rem; font-weight: 600; max-width: 196px; }
+.hp-chip .eyebrow { font-size: 0.58rem; }
+.hp-chip .mini-bar { width: 100%; margin-top: 5px; height: 4px; }
+.hp-live { padding: 5px 6px 5px 10px; gap: 6px; }
+.hp-live .eyebrow { display: inline-flex; align-items: center; gap: 5px; font-size: 0.58rem; color: var(--red); }
+.hp-live .dotlive, .live-line .dotlive { width: 7px; height: 7px; border-radius: 50%; background: var(--red); display: inline-block; animation: blink 1.2s infinite; }
+.hp-live button { border: 0; padding: 0; background: none; border-radius: 50%; }
+.hp-live img { width: 30px; height: 30px; border-radius: 50%; display: block; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--red); }
+.home-park .park-inspector { bottom: 44px; z-index: 3; }
+.insp-face { width: 44px; height: 44px; border-radius: 14px; flex: none; box-shadow: inset 0 0 0 1.5px rgba(16, 27, 51, 0.2); }
+.live-line { margin: 5px 0 0; padding: 5px 9px; border-radius: 9px; background: var(--red-soft); width: fit-content; }
+.live-line .dotlive { margin-right: 6px; vertical-align: 1px; }
+
+.home-sheet {
+  position: relative; z-index: 1;
+  margin: calc(var(--park-h) - 30px) -16px 0;
+  padding: 6px 16px 8px;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -14px 34px -10px rgba(6, 12, 28, 0.35);
+  min-height: calc(100dvh - 60px);
+}
+.sheet-grip-btn { display: block; width: 100%; height: 26px; margin: -2px 0 6px; border: 0; background: none; }
+.sheet-grip-btn span { display: block; width: 44px; height: 5px; border-radius: 3px; margin: 0 auto; background: var(--ink-3); opacity: 0.5; }
+@media (min-width: 592px) { .home-sheet { margin-left: 0; margin-right: 0; } }
+.netbar { position: relative; z-index: 3; }
+.hp-top, .hp-strip { transition: opacity 200ms, transform 200ms; }
+.home-park.scrolled .hp-top, .home-park.scrolled .hp-strip { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+.home-park.scrolled .hp-top > *, .home-park.scrolled .hp-strip > * { pointer-events: none; }

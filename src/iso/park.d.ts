@@ -1,6 +1,12 @@
 import type { IsoPainter } from "./iso";
 
-export type ParkFriend = { id: string; n: string; col: string; hours: number; closed: boolean; flag: boolean; inv: Map<string, number> };
+export type LiveStudy = { subject: string; startedAt: number; targetMin: number | null };
+export type ParkFriend = {
+  id: string; n: string; col: string; hours: number; closed: boolean; flag: boolean; inv: Map<string, number>;
+  /** data URI del avatar (cara del personaje) */ avatar?: string;
+  /** está estudiando ahora */ live?: LiveStudy | null;
+  /** hizo actividad física hoy (el personaje sale a trotar) */ active?: boolean;
+};
 export type ParkSelection =
   | { k: "nave" | "racha" | "cerrado"; f: ParkFriend & { lot: [number, number] } }
   | { k: "pieza"; f: ParkFriend & { lot: [number, number] }; p: { id: string; n: string; r: string }; n: number }
@@ -18,7 +24,9 @@ export function boundsFor(hours: number): [number, number];
 export function starsOf(n: number): number;
 export function setsDone(f: { inv: Map<string, number> }): { id: string; n: string; ids: string[]; premio: string }[];
 export function drawNave(P: IsoPainter, f: { n: string; col: string; lot: [number, number] }, form: number, closed: boolean, t: number): void;
-export function setWorld(w: { friends: ParkFriend[]; groupHours: number }): void;
+export function setWorld(w: { friends: ParkFriend[]; groupHours: number; meId?: string | null }): void;
+export function celebrate(friendId: string, text: string, color?: string): void;
+export function lotOf(friendId: string): [number, number] | null;
 export function setLight(mode: "auto" | "dia" | "atardecer" | "noche"): void;
 export function getLight(): "auto" | "dia" | "atardecer" | "noche";
 export function clearSelection(): void;
@@ -29,6 +37,7 @@ export type ParkScene = {
   start(): void;
   redraw(): void;
   destroy(): void;
+  setVisible(v: boolean): void;
   zoomBy(f: number): void;
   recenter(): void;
   focus(x: number, y: number, z?: number): void;

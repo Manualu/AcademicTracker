@@ -3,9 +3,9 @@
 import { applyOp } from "./apply";
 import { rollPiece } from "./catalog";
 import { addDays, dayKey, uuid } from "./time";
-import type { Backend, GroupData, Op, Profile, RemoteEvent, StudySession } from "./types";
+import type { Backend, GroupData, LiveStudy, Op, Profile, RemoteEvent, StudySession } from "./types";
 
-const DB_KEY = "remontada.demo.db.v2";
+const DB_KEY = "remontada.demo.db.v3";
 const AUTH_KEY = "remontada.demo.user";
 export const DEMO_ME = "demo-manu";
 /** Días de historial inventado: alcanza para ver el parque con varias etapas desbloqueadas */
@@ -52,7 +52,7 @@ function seed(): GroupData {
         const [sid, sname] = pool[Math.floor(rand() * pool.length)];
         const minutes = [25, 25, 50, 50, 50, 75, 90, 120][Math.floor(rand() * 8)];
         const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9 + i * 3 + Math.floor(rand() * 2), Math.floor(rand() * 60));
-        if (start > now) continue;
+        if (start.getTime() + minutes * 60_000 > now.getTime()) continue;
         const abandoned = rand() < 0.08;
         const sidv = uuid();
         sessions.push({
@@ -171,7 +171,24 @@ export class DemoBackend implements Backend {
     return () => { this.listeners.delete(cb); };
   }
 
+  // Presencia simulada: Berni está estudiando Probabilidad (termina a los 20 s, ver simulateFriend)
+  // y a los 45 s Benja arranca Economía.
+  private presence: Record<string, LiveStudy> = {
+    "demo-berni": { subject: "Probabilidad", startedAt: Date.now() - 49 * 60_000 - 40_000, targetMin: 50 },
+  };
+  private presCbs = new Set<(live: Record<string, LiveStudy>) => void>();
+  private emitPresence() { this.presCbs.forEach((cb) => cb({ ...this.presence })); }
+  setPresence() { /* en la demo no hay otros celulares a quienes avisar */ }
+  onPresence(cb: (live: Record<string, LiveStudy>) => void) {
+    this.presCbs.add(cb);
+    cb({ ...this.presence });
+    return () => { this.presCbs.delete(cb); };
+  }
+
   private simulateFriend() {
+    delete this.presence["demo-berni"];
+    this.emitPresence();
+    setTimeout(() => { this.presence["demo-benja"] = { subject: "Economía", startedAt: Date.now(), targetMin: 50 }; this.emitPresence(); }, 25_000);
     const minutes = 50;
     const id = uuid();
     const s: StudySession = {

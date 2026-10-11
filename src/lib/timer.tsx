@@ -104,6 +104,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     savingRef.current = false;
   }, [dispatch, userId]);
 
+  // Presencia en vivo: el grupo ve que estás estudiando (y en el parque tu nave se prende)
+  const { setMyLive } = useStore();
+  useEffect(() => {
+    setMyLive(running ? { subject: running.subjectName, startedAt: running.startedAt, targetMin: running.targetMin } : null);
+  }, [running, setMyLive]);
+
   // Reloj: cada medio segundo mientras hay una sesión en curso
   useEffect(() => {
     if (!running) return;

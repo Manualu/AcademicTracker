@@ -13,7 +13,7 @@ import {
 import { CATALOG, inventoryOf, pieceDef, RARITY, RARITY_ORDER, RARITY_RANK, RECYCLE_COST, rollRecycled, SETS, TIERS, type Rarity } from "../lib/catalog";
 import type { ParkWorld } from "../lib/park";
 import { useStore } from "../lib/store";
-import { fmtHours, uuid } from "../lib/time";
+import { fmtHours, fmtMinutes, uuid } from "../lib/time";
 import type { PieceKey } from "../lib/types";
 
 const PERSON_NAMES = ["Rosa, operaria del turno mañana", "Julián, de mantenimiento", "Caro, de seguridad e higiene", "Tito, autoelevadorista", "Mica, pasante de Industrial", "Don Oscar, el tornero", "Lu, de calidad", "Facu, de logística"];
@@ -47,7 +47,7 @@ function naveImg(f: { n: string; col: string }, form: number, w = 260, h = 200):
 }
 
 // ---------------------------------------------------------------- Inspector
-function Inspector({ sel, world, onClose, onFicha }: { sel: ParkSelection; world: ParkWorld; onClose: () => void; onFicha: (id: string, owner: string) => void }) {
+export function Inspector({ sel, world, onClose, onFicha }: { sel: ParkSelection; world: ParkWorld; onClose: () => void; onFicha: (id: string, owner: string) => void }) {
   const nav = useNavigate();
   const lead = world.friends.reduce<ParkWorld["friends"][number] | null>((a, b) => (!a || b.hours > a.hours ? b : a), null);
   let body: React.ReactNode = null;
@@ -57,10 +57,14 @@ function Inspector({ sel, world, onClose, onFicha }: { sel: ParkSelection; world
     const total = [...f.inv.values()].reduce((a, b) => a + b, 0);
     body = (
       <>
-        <span className="insp-swatch" style={{ background: f.closed ? "#9AA2AC" : f.col }} />
+        <img className="insp-face" src={f.avatar} alt="" style={{ background: f.col, opacity: f.closed ? 0.6 : 1 }} />
         <div className="grow">
           <p className="eyebrow">Nave · nivel {lvl}</p>
           <h3 className="h2">{f.n}</h3>
+          {f.live && (
+            <p className="small live-line"><span className="dotlive" /> Estudiando <b>{f.live.subject}</b> hace {fmtMinutes(Math.max(0, Math.floor((Date.now() - f.live.startedAt) / 60000)))}</p>
+          )}
+          {!f.live && f.active && <p className="small" style={{ margin: "4px 0 0" }}>Hoy hizo actividad física (por eso sale a trotar).</p>}
           <p className="small" style={{ margin: "4px 0 0" }}><b>{LEVELS[lvl - 1].n}</b>, {fmtH(f.hours)} h desde el tratado</p>
           <p className="small muted" style={{ margin: "2px 0 0" }}>
             {NAVE_FORMS[form].n}. {total} piezas, {f.inv.size} distintas.{next ? ` Le faltan ${Math.ceil(next.h - f.hours)} h para el nivel ${lvl + 1}.` : ""}

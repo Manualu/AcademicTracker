@@ -4,7 +4,7 @@ import { DemoBackend } from "./demoBackend";
 import { pieceArticle } from "./catalog";
 import { SupabaseBackend, isNetworkError } from "./supabaseBackend";
 import { fmtMinutes, uuid } from "./time";
-import { emptyData, type Backend, type GroupData, type Op, type PieceKey, type QueuedOp, type RemoteEvent } from "./types";
+import { emptyData, type Backend, type GroupData, type LiveStudy, type Op, type PieceKey, type QueuedOp, type RemoteEvent } from "./types";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -42,6 +42,9 @@ type Store = {
   toast: (t: Omit<Toast, "id">) => void;
   dismiss: (id: string) => void;
   setUserId: (id: string | null) => void;
+  /** Quién está estudiando ahora, incluido vos (tu cronómetro cuenta aunque no haya señal). */
+  live: Record<string, LiveStudy>;
+  setMyLive: (l: LiveStudy | null) => void;
 };
 
 const Ctx = createContext<Store | null>(null);
@@ -54,6 +57,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [syncing, setSyncing] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [remoteLive, setRemoteLive] = useState<Record<string, LiveStudy>>({});
+  const [myLive, setMyLiveState] = useState<LiveStudy | null>(null);
   const queueRef = useRef(queue);
   const userRef = useRef(userId);
   const flushing = useRef(false);
@@ -198,9 +203,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const data = useMemo(() => queue.reduce((d, q) => applyOp(d, q.op), server), [queue, server]);
 
+  // Presencia: escuchar quién estudia y publicar si estudiás vos
+  useEffect(() => {
+    if (!userId) return;
+    return backend.onPresence(setRemoteLive);
+  }, [userId]);
+  useEffect(() => {
+    if (!userId) return;
+    backend.setPresence(userId, myLive);
+  }, [userId, myLive, online]);
+  const setMyLive = useCallback((l: LiveStudy | null) => setMyLiveState(l), []);
+  const live = useMemo(() => {
+    const out = { ...remoteLive };
+    if (userId) { if (myLive) out[userId] = myLive; else delete out[userId]; }
+    return out;
+  }, [remoteLive, myLive, userId]);
+
   const value: Store = {
     ready, userId, data, online, pending: queue.length, syncing, toasts,
-    dispatch, refresh, toast, dismiss, setUserId,
+    dispatch, refresh, toast, dismiss, setUserId, live, setMyLive,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

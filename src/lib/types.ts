@@ -99,6 +99,9 @@ export type QueuedOp = { qid: string; op: Op };
 
 export type RemoteEvent = { table: string; type: "INSERT" | "UPDATE" | "DELETE"; record: Record<string, unknown> };
 
+/** Alguien estudiando en este momento (presencia en vivo, no se guarda en la base). */
+export type LiveStudy = { subject: string; startedAt: number; targetMin: number | null };
+
 export interface Backend {
   readonly isDemo: boolean;
   currentUserId(): Promise<string | null>;
@@ -109,6 +112,10 @@ export interface Backend {
   fetchAll(): Promise<GroupData>;
   exec(op: Op): Promise<void>;
   subscribe(cb: (e: RemoteEvent) => void): () => void;
+  /** Avisa al grupo si estás estudiando (null = ya no). */
+  setPresence(userId: string, live: LiveStudy | null): void;
+  /** Quién está estudiando ahora (sin incluirte a vos). */
+  onPresence(cb: (live: Record<string, LiveStudy>) => void): () => void;
   savePushSubscription(sub: PushSubscriptionJSON): Promise<void>;
   deletePushSubscription(endpoint: string): Promise<void>;
 }
