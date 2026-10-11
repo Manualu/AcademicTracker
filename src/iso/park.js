@@ -659,12 +659,22 @@ export function createScene(opts = {}) {
   let lastT = 0, acc = 0, raf = 0, running = false, onSelect = null, timeNow = 0;
   let lastBounds = null;
 
+  // Resolución: hasta 2x, pero en pantallas grandes (iPad, compu) se arranca más bajo y se
+  // baja sola si el equipo tarda en dibujar (ver loop). Se nota poco y el parque va fluido.
+  let maxDpr = 2;
   function resize() {
-    dpr = Math.min(2, window.devicePixelRatio || 1);
     const r = canvas.getBoundingClientRect();
     W = r.width; H = r.height;
+    if (W * H > 520000) maxDpr = Math.min(maxDpr, 1.5);
+    dpr = Math.min(maxDpr, window.devicePixelRatio || 1);
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    snap = null;
   }
+  // Foto del último cuadro estable: mientras se hace zoom se estira esa foto en vez de
+  // redibujar todo el parque en cada cuadro (es lo que hacía lento el zoom en iPad).
+  let snap = null;
+  // El suelo (cientos de baldosas) también se guarda como imagen y solo se rehace si cambia.
+  let groundSp = null;
   // En vertical se deja que el parque desborde un poco a los costados (se puede arrastrar)
   const fitTw = (n) => compact ? Math.min(((W - 8) / n) * 1.05, (H - 24) / (n / 2 + 1.6)) : Math.min(((W - 20) / n) * (W < H ? 1.38 : 1), (H - 150) / (n / 2 + 2.6));
   function view() {
@@ -883,15 +893,17 @@ export function createScene(opts = {}) {
   function deliveries(P) {
     const c = P.ctx, now = performance.now();
     STATE.deliveries = STATE.deliveries.filter((d) => now - d.t0 < 4800);
+    const stack = new Map();
     for (const d of STATE.deliveries) {
       const k = (now - d.t0) / 4800;
+      const slot = stack.get(d.f.id) ?? 0; stack.set(d.f.id, slot + 1);
       const [lx, ly] = d.f.lot;
       const [sx, sy] = P.S(lx + 1, ly + 1.5, 2.2 + k * 1.6);
       c.save();
       c.globalAlpha = k < 0.1 ? k / 0.1 : k > 0.8 ? (1 - k) / 0.2 : 1;
       c.font = `700 13px "IBM Plex Sans", system-ui, sans-serif`;
       const tw = c.measureText(d.text).width, w = tw + 26, h = 28;
-      c.translate(sx, sy); const sc = 0.9 + Math.min(1, k * 6) * 0.15; c.scale(sc, sc);
+      c.translate(sx, sy - slot * 34); const sc = 0.9 + Math.min(1, k * 6) * 0.15; c.scale(sc, sc);
       c.beginPath(); c.roundRect(-w / 2, -h / 2, w, h, 10); c.fillStyle = "#14213D"; c.fill(); c.lineWidth = 2; c.strokeStyle = d.color; c.stroke();
       c.fillStyle = d.color; c.beginPath(); c.arc(-w / 2 + 12, 0, 4, 0, Math.PI * 2); c.fill();
       c.fillStyle = "#FFFFFF"; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(d.text, -w / 2 + 20, 0.5);
@@ -994,10 +1006,23 @@ export function createScene(opts = {}) {
       if (Math.abs(cam.tx - cam.cx) < 0.01 && Math.abs(cam.ty - cam.cy) < 0.01 && Math.abs(cam.tz - cam.zoom) < 0.004) { cam.cx = cam.tx; cam.cy = cam.ty; cam.zoom = cam.tz; cam.tx = cam.ty = cam.tz = null; }
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    sky(L);
     const v = view();
+    const twq0 = Math.round(v.tw * 100);
+    if (twq0 !== lastTw) { lastTw = twq0; twStableSince = t; }
+    const zoomingNow = !REDUCE && t - twStableSince < 0.25;
+    const lightKey = Math.round(L.night * 20) + "|" + Math.round(L.dusk * 20);
+    if (zoomingNow && snap && snap.light === lightKey) {
+      // Camino rápido: cielo + la foto escalada al zoom nuevo
+      sky(L);
+      const k = v.tw / snap.tw;
+      ctx.imageSmoothingQuality = "low";
+      ctx.drawImage(snap.c, v.ox - k * snap.ox, v.oy - k * snap.oy, snap.W * k, snap.H * k);
+      if (L.night > 0) { ctx.fillStyle = `rgba(8,18,40,${L.night * 0.08})`; ctx.fillRect(0, 0, W, H); }
+      return;
+    }
+    sky(L);
     const P = makePainter(ctx, { ox: v.ox, oy: v.oy, tw: v.tw, night: L.night, dusk: L.dusk });
-    ground(P, GH(), L);
+    groundCached(P, GH(), L, twq0, zoomingNow);
     const E = buildEntities(P, t, dt);
     shadows(P, E.filter((e) => !e.dyn), L);
     selectionRing(P, t);
@@ -1005,9 +1030,8 @@ export function createScene(opts = {}) {
     E.sort((a, b) => a.key - b.key || a.i - b.i);
 
     // ¿sprites válidos? (dependen del tamaño de baldosa, la luz y el estado; no de dónde está la cámara)
-    const twq = Math.round(v.tw * 100);
-    if (twq !== lastTw) { lastTw = twq; twStableSince = t; }
-    const zooming = REDUCE ? false : t - twStableSince < 0.25;
+    const twq = twq0;
+    const zooming = zoomingNow;
     const env = [twq, dpr, Math.round(L.night * 20), Math.round(L.dusk * 20)].join("|");
     if (env !== spriteEnv) { sprites.clear(); spriteEnv = env; }
     const bucket = REDUCE ? 0 : Math.floor(t * SPRITE_FPS);
@@ -1050,10 +1074,41 @@ export function createScene(opts = {}) {
     labels(P, E, L);
     deliveries(P);
     if (L.night > 0) { ctx.fillStyle = `rgba(8,18,40,${L.night * 0.08})`; ctx.fillRect(0, 0, W, H); }
+    // Foto del cuadro para el próximo zoom (como mucho una por segundo)
+    if (!zooming && !REDUCE && (!snap || t - snap.t > 1)) {
+      if (!snap || snap.c.width !== canvas.width || snap.c.height !== canvas.height) {
+        const c = document.createElement("canvas"); c.width = canvas.width; c.height = canvas.height;
+        snap = { c, x: c.getContext("2d") };
+      }
+      snap.x.setTransform(1, 0, 0, 1, 0, 0); snap.x.clearRect(0, 0, snap.c.width, snap.c.height);
+      snap.x.drawImage(canvas, 0, 0);
+      Object.assign(snap, { t, tw: v.tw, ox: v.ox, oy: v.oy, W, H, light: lightKey });
+    }
+  }
+
+  function groundCached(P, Hh, L, twq, zooming) {
+    if (zooming || REDUCE) { ground(P, Hh, L); return; }
+    const [lo, hi] = boundsFor(Hh);
+    const nb = boundsFor(nextStageHours(Hh) ?? Hh);
+    const key = [twq, dpr, Math.round(L.night * 20), Math.round(L.dusk * 20), lo, hi, nb[0], has(Hh, "calles"), FRIENDS.length].join("|");
+    const [ax, ay] = P.S(0, 0, 0);
+    if (!groundSp || groundSp.key !== key) {
+      const a = Math.min(lo, nb[0]), b = Math.max(hi, nb[1]);
+      const pts = [P.S(a, a), P.S(b, a), P.S(a, b), P.S(b, b)];
+      const bx = Math.floor(Math.min(...pts.map((q) => q[0])) - 4), by = Math.floor(Math.min(...pts.map((q) => q[1])) - 4);
+      const bw = Math.ceil(Math.max(...pts.map((q) => q[0])) - bx + 8), bh = Math.ceil(Math.max(...pts.map((q) => q[1])) - by + P.tw * 0.3 + 8);
+      const c = document.createElement("canvas"); c.width = Math.max(1, Math.ceil(bw * dpr)); c.height = Math.max(1, Math.ceil(bh * dpr));
+      const gx = c.getContext("2d");
+      gx.setTransform(dpr, 0, 0, dpr, -bx * dpr, -by * dpr);
+      const main = P.ctx;
+      P.setCtx(gx); ground(P, Hh, L); P.setCtx(main);
+      groundSp = { key, c, dx: bx - ax, dy: by - ay, w: bw, h: bh };
+    }
+    P.ctx.drawImage(groundSp.c, ax + groundSp.dx, ay + groundSp.dy, groundSp.w, groundSp.h);
   }
 
   // Cuadros por segundo adaptativos: si el celular tarda en dibujar, se dibuja menos seguido.
-  let avgCost = 8, onScreen = true, drawnOnce = false, manualHidden = false;
+  let avgCost = 8, onScreen = true, drawnOnce = false, manualHidden = false, frames = 0;
   function loop(ms) {
     const t = ms / 1000;
     const dt = lastT ? Math.min(0.1, t - lastT) : 0;
@@ -1065,6 +1120,8 @@ export function createScene(opts = {}) {
       const c0 = performance.now();
       render(t, Math.min(acc, 0.2)); acc = 0;
       avgCost = avgCost * 0.9 + (performance.now() - c0) * 0.1;
+      frames++;
+      if (frames > 20 && avgCost > 26 && maxDpr > 1) { maxDpr = Math.max(1, maxDpr - 0.5); resize(); sprites.clear(); groundSp = null; frames = 0; avgCost = 12; }
     }
     if (running && !REDUCE) raf = requestAnimationFrame(loop);
   }
@@ -1157,8 +1214,12 @@ export function createScene(opts = {}) {
     redraw() { if (REDUCE) render(timeNow, 0); },
     zoomBy(f) { cam.tz = Math.max(0.55, Math.min(3.5, (cam.tz ?? cam.zoom) * f)); cam.tx = cam.tx ?? cam.cx; cam.ty = cam.ty ?? cam.cy; cam.userMoved = true; if (REDUCE) { cam.zoom = cam.tz; render(timeNow, 0); } },
     recenter() { const [lo, hi] = boundsFor(GH()); cam.tx = (lo + hi) / 2; cam.ty = (lo + hi) / 2; cam.tz = 1; cam.userMoved = false; if (REDUCE) { cam.cx = cam.tx; cam.cy = cam.ty; cam.zoom = 1; render(timeNow, 0); } },
-    focus(x, y, z = 1.8) { cam.tx = x; cam.ty = y; cam.tz = z; cam.userMoved = true; if (REDUCE) { cam.cx = x; cam.cy = y; cam.zoom = z; render(timeNow, 0); } },
+    focus(x, y, z = 1.8, instant = false) {
+      cam.tx = x; cam.ty = y; cam.tz = z; cam.userMoved = true;
+      if (REDUCE || instant) { cam.cx = x; cam.cy = y; cam.zoom = z; cam.tx = cam.ty = cam.tz = null; render(timeNow, 0); }
+    },
     get cam() { return cam; },
+    benchZoom(n = 20) { const t0 = performance.now(); const z0 = cam.zoom; for (let i = 0; i < n; i++) { cam.zoom = z0 * (1 + i * 0.01); render(timeNow + 0.3 + i / 60, 1 / 60); } cam.zoom = z0; return (performance.now() - t0) / n; },
     bench(n = 20) { const t0 = performance.now(); for (let i = 0; i < n; i++) render(timeNow + i / 30, 1 / 30); return (performance.now() - t0) / n; },
   };
   return api;

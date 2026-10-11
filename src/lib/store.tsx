@@ -100,15 +100,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let sentSomething = false;
     try {
       while (queueRef.current.length > 0) {
-        const [first, ...rest] = queueRef.current;
+        const first = queueRef.current[0];
+        // Se saca por id y leyendo la cola de nuevo: mientras se mandaba este cambio pudieron
+        // entrar otros (por ejemplo, "Marcar CBC completo" encola seis de golpe)
+        const done = () => setQueuePersist(queueRef.current.filter((q) => q.qid !== first.qid));
         try {
           await backend.exec(first.op);
           sentSomething = true;
-          setQueuePersist(rest);
+          done();
         } catch (e) {
           if (isNetworkError(e)) break; // sin conexión: queda en la cola para más tarde
           console.error(e);
-          setQueuePersist(rest);
+          done();
           toast({ tone: "error", title: "No se pudo guardar un cambio", body: String((e as Error).message ?? e) });
         }
       }

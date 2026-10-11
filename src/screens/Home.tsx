@@ -137,13 +137,14 @@ export default function Home() {
   const parkRef = useRef<HTMLElement>(null);
   const [sel, setSel] = useState<ParkSelection | null>(null);
   const [ficha, setFicha] = useState<{ id: string; owner: string } | null>(null);
-  const focusOn = (id: string, z = 1.7) => {
+  const focusOn = (id: string, z = 1.7, instant = false) => {
     const lot = lotOf(id);
-    if (lot) scene.current?.focus(lot[0] + 1.6, lot[1] + 1.8, z);
+    if (lot) scene.current?.focus(lot[0] + 1.6, lot[1] + 1.8, z, instant);
   };
   // Al entrar, la cámara va a tu nave
   useEffect(() => {
-    const t = window.setTimeout(() => userId && focusOn(userId, 1.45), 350);
+    // Sin animación: entrar ya parado en tu nave (animar el zoom al abrir costaba en iPad)
+    const t = window.setTimeout(() => userId && focusOn(userId, 1.45, true), 0);
     return () => window.clearTimeout(t);
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => clearSelection(), []);

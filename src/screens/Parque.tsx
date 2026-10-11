@@ -382,7 +382,8 @@ export function useParkMilestones(world: ParkWorld) {
   const { toast, userId } = useStore();
   useEffect(() => {
     const me = world.friends.find((f) => f.id === userId);
-    const now = { st: stageIdx(world.groupHours), lvl: me ? levelOf(me.hours) : 1 };
+    if (!me) return; // todavía no llegaron los datos: no comparar contra un parque vacío
+    const now = { st: stageIdx(world.groupHours), lvl: levelOf(me.hours) };
     let prev: { st: number; lvl: number } | null = null;
     try { prev = JSON.parse(localStorage.getItem("remontada.parque.visto") ?? "null"); } catch { /* sin almacenamiento */ }
     try { localStorage.setItem("remontada.parque.visto", JSON.stringify(now)); } catch { /* ignorar */ }

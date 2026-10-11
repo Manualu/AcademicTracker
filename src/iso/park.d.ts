@@ -40,7 +40,8 @@ export type ParkScene = {
   setVisible(v: boolean): void;
   zoomBy(f: number): void;
   recenter(): void;
-  focus(x: number, y: number, z?: number): void;
+  focus(x: number, y: number, z?: number, instant?: boolean): void;
   bench(n?: number): number;
+  benchZoom(n?: number): number;
 };
 export function createScene(opts?: { compact?: boolean }): ParkScene;
