@@ -110,8 +110,8 @@ export function PieceSheet({ piece, count, owner, onClose }: { piece: PieceKey |
       <div className="stack" style={{ gap: 14 }}>
         <div className="row" style={{ gap: 8 }}>
           <span className="rar" style={{ ["--rc" as string]: rar.color }}>{rar.n}</span>
-          {count > 0 && <span className="small strong">{"★".repeat(starsOf(count))} <span className="muted">· {owner} tiene {count}</span></span>}
-          {count === 0 && <span className="small muted">{owner} todavía no la tiene</span>}
+          {count > 0 && <span className="small strong">{"★".repeat(starsOf(count))} <span className="muted">· {owner === "Vos" ? `tenés ${count}` : `${owner} tiene ${count}`}</span></span>}
+          {count === 0 && <span className="small muted">{owner === "Vos" ? "Todavía no la tenés" : `${owner} todavía no la tiene`}</span>}
         </div>
         <Viewer piece={p.id} stars={count ? starsOf(count) : 1} />
         <p style={{ margin: 0 }}>{p.uso}</p>

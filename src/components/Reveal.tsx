@@ -12,6 +12,7 @@ const REDUCE = typeof window !== "undefined" && window.matchMedia("(prefers-redu
  */
 export function Reveal({ piece, count, children }: { piece: PieceKey; count: number; children: (shown: boolean) => ReactNode }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const ui = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(REDUCE);
   const p = pieceDef(piece);
   const rc = RARITY[p.r as Rarity].color;
@@ -37,8 +38,11 @@ export function Reveal({ piece, count, children }: { piece: PieceKey; count: num
     const draw = (now: number) => {
       const t = REDUCE ? 9 : (now - t0) / 1000;
       ctx.clearRect(0, 0, W, H);
-      const cx = W / 2, cy = H * 0.4;
-      const tw = Math.min(W * 0.36, H * 0.26);
+      // La pieza va en el espacio libre de arriba del texto, así no se pisan (en compu la pantalla es baja y ancha)
+      const reserve = Math.max(ui.current?.offsetHeight ?? 0, 230) + 36;
+      const free = Math.max(160, H - reserve);
+      const cx = W / 2, cy = free * 0.46;
+      const tw = Math.min(W * 0.36, free * 0.34);
       if (t < 1.2) {
         const shake = Math.sin(t * 40) * (t * 5);
         const P = makePainter(ctx, { ox: cx + shake, oy: cy + tw * 0.2, tw });
@@ -78,7 +82,7 @@ export function Reveal({ piece, count, children }: { piece: PieceKey; count: num
   return (
     <div className="reveal" role="dialog" aria-modal="true" aria-label="Pieza nueva">
       <canvas ref={ref} aria-hidden onClick={() => setShown(true)} />
-      <div className="reveal-ui">{children(shown)}</div>
+      <div className="reveal-ui" ref={ui}>{children(shown)}</div>
     </div>
   );
 }
