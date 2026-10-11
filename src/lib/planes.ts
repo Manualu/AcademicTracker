@@ -4,7 +4,17 @@ import { useEffect, useState } from "react";
 import indexJson from "../data/planes/index.json";
 import type { SubjectState, SubjectStatus } from "./types";
 
-export type PlanMeta = { id: string; ano: number; creditosTotal: number; creditosElectivas: number | null };
+export type PlanMeta = {
+  id: string;
+  ano: number;
+  /** Total para recibirse según FIUBA-Map. Incluye el CBC. */
+  creditosTotal: number;
+  creditosCbc: number;
+  creditosElectivas: number | null;
+};
+
+/** Créditos de la carrera sin contar el CBC: lo que se muestra como meta en la pantalla Carrera. */
+export const creditosCarrera = (p: PlanMeta) => p.creditosTotal - p.creditosCbc;
 export type Carrera = { nombre: string; nombreCorto: string; planes: PlanMeta[] };
 export type Materia = {
   id: string;
@@ -14,6 +24,8 @@ export type Materia = {
   categoria: string;
   nivel: number | null;
   requiereCreditos?: number;
+  /** true: el mínimo de créditos se cuenta incluyendo el CBC (criterio de FIUBA-Map) */
+  requiereCbc?: boolean;
 };
 
 export const CARRERAS = indexJson as Carrera[];
@@ -82,9 +94,16 @@ export function statusMap(statuses: SubjectStatus[], userId: string, planId: str
 
 const RANK: Record<SubjectState, number> = { cursando: 1, regularizada: 2, aprobada: 3 };
 
-export function creditosAprobados(materias: Materia[], st: StatusMap): number {
-  return materias.filter((m) => !isCbc(m) && st.get(m.id) === "aprobada").reduce((a, m) => a + m.creditos, 0);
+/** Créditos de materias aprobadas. Por defecto sin el CBC; con `conCbc` lo suma. */
+export function creditosAprobados(materias: Materia[], st: StatusMap, conCbc = false): number {
+  return materias
+    .filter((m) => (conCbc || !isCbc(m)) && st.get(m.id) === "aprobada")
+    .reduce((a, m) => a + m.creditos, 0);
 }
+
+/** Créditos que cuentan para el mínimo que pide una materia. */
+export const creditosParaRequisito = (m: Materia, materias: Materia[], st: StatusMap) =>
+  creditosAprobados(materias, st, !!m.requiereCbc);
 
 /**
  * Regla para "podés cursarla": todas las correlativas con la cursada aprobada (regularizadas o aprobadas)
@@ -101,7 +120,7 @@ export function correlativaOk(id: string, materias: Materia[], st: StatusMap): b
 export function habilitada(m: Materia, materias: Materia[], st: StatusMap): boolean {
   if (isCbc(m)) return true;
   if (!m.correlativas.every((c) => correlativaOk(c, materias, st))) return false;
-  if (m.requiereCreditos && creditosAprobados(materias, st) < m.requiereCreditos) return false;
+  if (m.requiereCreditos && creditosParaRequisito(m, materias, st) < m.requiereCreditos) return false;
   return true;
 }
 

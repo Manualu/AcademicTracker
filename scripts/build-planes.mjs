@@ -16,7 +16,12 @@ for (const b of blocks) {
   const file = /require\("\.\/data\/([^"]+)"\)/.exec(b)?.[1];
   const total = Number(/total: (\d+)/.exec(b)?.[1] ?? 0);
   const elect = /electivas: (\d+)/.exec(b)?.[1];
-  if (file) planesMeta[id] = { id, ano, file, creditosTotal: total, creditosElectivas: elect ? Number(elect) : null };
+  if (file) {
+    const raw = JSON.parse(fs.readFileSync(path.join(src, "src/data", file), "utf8"));
+    // El total de FIUBA-Map incluye el CBC
+    const creditosCbc = raw.filter((m) => m.categoria === "*CBC").reduce((a, m) => a + (m.creditos ?? 0), 0);
+    planesMeta[id] = { id, ano, file, creditosTotal: total, creditosCbc, creditosElectivas: elect ? Number(elect) : null };
+  }
 }
 
 // Agrupación por carrera, tal como la presenta FIUBA-Map
@@ -25,7 +30,7 @@ const carreras = [];
 for (const m of planesTxt.matchAll(/nombre: "([^"]+)",\s*nombrecorto: "([^"]+)",\s*planes: \[([^\]]+)\]/g)) {
   const ids = [...m[3].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
   carreras.push({ nombre: m[1], nombreCorto: m[2], planes: ids.map((id) => planesMeta[id]).filter(Boolean)
-    .map(({ id, ano, creditosTotal, creditosElectivas }) => ({ id, ano, creditosTotal, creditosElectivas })) });
+    .map(({ id, ano, creditosTotal, creditosElectivas, creditosCbc }) => ({ id, ano, creditosTotal, creditosCbc, creditosElectivas })) });
 }
 
 const outDir = path.resolve("src/data/planes");
@@ -39,7 +44,7 @@ for (const meta of Object.values(planesMeta)) {
     correlativas: m.correlativas ? m.correlativas.split("-").filter(Boolean) : [],
     categoria: m.categoria,
     nivel: m.level ?? null,
-    ...(m.requiere ? { requiereCreditos: m.requiere } : {}),
+    ...(m.requiere ? { requiereCreditos: m.requiere, requiereCbc: !!m.requiereCBC } : {}),
   }));
   fs.writeFileSync(path.join(outDir, `${meta.id}.json`), JSON.stringify(materias));
 }
