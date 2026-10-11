@@ -198,7 +198,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } else if (e.table === "activities") {
         toast({ title: `${name} hizo actividad física`, body: String(e.record.kind), userId: author, icon: "run" });
       } else if (e.table === "exams") {
-        toast({ title: `${name} agendó un examen de ${e.record.subject_name}`, userId: author, icon: "calendar" });
+        toast(e.record.kind === "grupal"
+          ? { title: `${name} armó una sesión de estudio grupal`, body: String(e.record.subject_name), userId: author, icon: "users" }
+          : { title: `${name} agendó un examen de ${e.record.subject_name}`, userId: author, icon: "calendar" });
       }
     });
     return () => { clearTimeout(timer); off(); };

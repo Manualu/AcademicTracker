@@ -113,7 +113,7 @@ export class SupabaseBackend implements Backend {
       })),
       exams: exams.map((r) => ({
         id: r.id, createdBy: r.created_by, subjectName: r.subject_name, kind: r.kind, startsAt: r.starts_at,
-        location: r.location, notes: r.notes, createdAt: r.created_at,
+        location: r.location, notes: r.notes, createdAt: r.created_at, durationMin: r.duration_min ?? null,
       })),
       participants: participants.map((r) => ({ examId: r.exam_id, userId: r.user_id, joinedAt: r.joined_at })),
       recycles: recycles.map((r) => ({ id: r.id, userId: r.user_id, piece: r.piece, createdAt: r.created_at })),
@@ -152,6 +152,7 @@ export class SupabaseBackend implements Backend {
         const e = op.exam;
         check(await sb.from("exams").upsert({
           id: e.id, subject_name: e.subjectName, kind: e.kind, starts_at: e.startsAt, location: e.location, notes: e.notes,
+          ...(e.kind === "grupal" ? { duration_min: e.durationMin ?? null } : {}),
         }, { onConflict: "id", ignoreDuplicates: true }));
         check(await sb.from("exam_participants").upsert({ exam_id: e.id }, { onConflict: "exam_id,user_id", ignoreDuplicates: true }));
         return;

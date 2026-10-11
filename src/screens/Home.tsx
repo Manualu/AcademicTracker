@@ -14,6 +14,7 @@ import { activitiesOf, sessionsOf, weekActivities, weekMinutes, weekSummary } fr
 import { useMe, useStore } from "../lib/store";
 import { addDays, capitalize, dayKey, daysUntil, fmtClock, fmtHours, fmtMinutes, fmtTime, startOfWeek } from "../lib/time";
 import { useTimer } from "../lib/timer";
+import { groupEnd, groupLive, isExam, isGroup, placeLabel } from "../lib/agenda";
 
 const DOW = ["L", "M", "M", "J", "V", "S", "D"];
 
@@ -113,8 +114,13 @@ export default function Home() {
 
   const myExamIds = new Set(data.participants.filter((p) => p.userId === userId).map((p) => p.examId));
   const nextExam = data.exams
-    .filter((e) => myExamIds.has(e.id) && new Date(e.startsAt) > new Date())
+    .filter((e) => isExam(e) && myExamIds.has(e.id) && new Date(e.startsAt) > new Date())
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  // Próxima sesión grupal (la tuya primero; si no, cualquiera de la semana para sumarte)
+  const upcomingGroups = data.exams
+    .filter((e) => isGroup(e) && groupEnd(e) > new Date() && daysUntil(e.startsAt) <= 7)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const nextGroup = upcomingGroups.find((e) => myExamIds.has(e.id)) ?? upcomingGroups[0];
 
   const diff = week.minutes - week.paceMinutes;
   const done = week.minutes >= week.goalMinutes;
@@ -275,6 +281,40 @@ export default function Home() {
           </Link>
         ))}
       </div>
+
+      {nextGroup && (() => {
+        const n = daysUntil(nextGroup.startsAt);
+        const d = new Date(nextGroup.startsAt);
+        const live = groupLive(nextGroup);
+        const going = data.participants.filter((p) => p.examId === nextGroup.id).map((p) => byId.get(p.userId)).filter(Boolean);
+        const imIn = myExamIds.has(nextGroup.id);
+        return (
+          <>
+            <div className="section-title">
+              <h2 className="h2">{live ? "Sesión grupal ahora" : "Próxima sesión grupal"}</h2>
+              <Link to="/examenes" className="link">Calendario</Link>
+            </div>
+            <Link to={`/examenes?open=${nextGroup.id}`} className={`ticket group ${live ? "live" : ""}`}>
+              <div className="stub">
+                <span className="eyebrow">{d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")}</span>
+                <span className="num">{d.getDate()}</span>
+                <span className="eyebrow">{fmtTime(d)}</span>
+              </div>
+              <div className="body">
+                <div className="row between" style={{ alignItems: "flex-start" }}>
+                  <span className="title">{nextGroup.subjectName}</span>
+                  <span className="cd">{live ? "Ahora" : n === 0 ? "Hoy" : n === 1 ? "Mañana" : `${n} días`}</span>
+                </div>
+                <span className="small muted ellipsis">{fmtTime(d)} a {fmtTime(groupEnd(nextGroup))} h{nextGroup.location ? ` · ${placeLabel(nextGroup.location)}` : ""}</span>
+                <div className="row" style={{ marginTop: 6, gap: 8 }}>
+                  {going.length > 0 && <div className="avatar-stack">{going.map((p) => <Avatar key={p!.id} profile={p} size={22} />)}</div>}
+                  <span className="tiny muted">{live ? (imIn ? "Tocá para poner el cronómetro." : "Tocá para sumarte.") : imIn ? `Vas con ${going.length - 1} más` : "Todavía no te sumaste"}</span>
+                </div>
+              </div>
+            </Link>
+          </>
+        );
+      })()}
 
       {nextExam && (() => {
         const n = daysUntil(nextExam.startsAt);

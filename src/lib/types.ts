@@ -48,7 +48,8 @@ export type Activity = {
   createdAt: string;
 };
 
-export type ExamKind = "parcial" | "recuperatorio" | "final" | "coloquio" | "otro";
+/** "grupal" = sesión de estudio grupal (comparte calendario y "me sumo" con los exámenes). */
+export type ExamKind = "parcial" | "recuperatorio" | "final" | "coloquio" | "otro" | "grupal";
 
 export type Exam = {
   id: string;
@@ -59,6 +60,8 @@ export type Exam = {
   location: string | null;
   notes: string | null;
   createdAt: string;
+  /** Solo sesiones grupales: cuánto dura, en minutos. */
+  durationMin?: number | null;
 };
 
 export type ExamParticipant = { examId: string; userId: string; joinedAt: string };

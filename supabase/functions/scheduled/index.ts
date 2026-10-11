@@ -31,8 +31,17 @@ Deno.serve(async (req) => {
     if (error) throw error;
     const allowed = new Set(people.filter((p) => p.notify_exams).map((p) => p.id));
     const items: [string, { title: string; body: string; url: string; tag: string }][] = [];
+    const today = arDate(now);
     for (const e of exams ?? []) {
       const day = arDate(new Date(e.starts_at));
+      if (e.kind === "grupal") {
+        // Sesiones grupales: aviso el mismo día a la mañana a los que van
+        if (day !== today) continue;
+        const time = new Date(e.starts_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires" });
+        const push = { title: `Hoy a las ${time}: sesión grupal de ${e.subject_name}`, body: "Llevá lo que tengas pendiente. Cuando arranque, poné el cronómetro desde la sesión.", url: "./#/examenes", tag: `grupal-hoy-${e.id}` };
+        for (const p of e.exam_participants as { user_id: string }[]) if (allowed.has(p.user_id)) items.push([p.user_id, push]);
+        continue;
+      }
       const kind = e.kind === "otro" ? "examen" : e.kind;
       let push = null;
       if (day === in7) push = {

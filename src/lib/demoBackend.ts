@@ -5,7 +5,7 @@ import { rollPiece } from "./catalog";
 import { addDays, dayKey, uuid } from "./time";
 import type { Backend, GroupData, LiveStudy, Op, Profile, RemoteEvent, StudySession } from "./types";
 
-const DB_KEY = "remontada.demo.db.v3";
+const DB_KEY = "remontada.demo.db.v4";
 const AUTH_KEY = "remontada.demo.user";
 export const DEMO_ME = "demo-manu";
 /** Días de historial inventado: alcanza para ver el parque con varias etapas desbloqueadas */
@@ -86,9 +86,11 @@ function seed(): GroupData {
     { id: uuid(), createdBy: "demo-vicky", subjectName: "Transformación de la Energía", kind: "parcial" as const, startsAt: at(20, 14), location: "Las Heras", notes: null, createdAt: created },
     { id: uuid(), createdBy: "demo-benja", subjectName: "Análisis Matemático II", kind: "final" as const, startsAt: at(31, 9), location: null, notes: null, createdAt: created },
     { id: uuid(), createdBy: "demo-benja", subjectName: "Química Básica", kind: "recuperatorio" as const, startsAt: at(-9, 9), location: null, notes: null, createdAt: created },
+    { id: uuid(), createdBy: "demo-berni", subjectName: "Probabilidad", kind: "grupal" as const, startsAt: at(1, 18), durationMin: 120, location: "https://meet.google.com/rmt-prob-abc", notes: "Hacemos el parcial viejo de 2024 y comparamos", createdAt: created },
+    { id: uuid(), createdBy: "demo-vicky", subjectName: "Economía", kind: "grupal" as const, startsAt: at(4, 15), durationMin: 180, location: "Biblioteca de Paseo Colón", notes: null, createdAt: created },
   ];
   const participants = [
-    [0, DEMO_ME], [0, "demo-berni"], [0, "demo-vicky"], [1, DEMO_ME], [1, "demo-benja"], [2, "demo-vicky"], [2, "demo-berni"], [3, "demo-benja"], [4, "demo-benja"],
+    [0, DEMO_ME], [0, "demo-berni"], [0, "demo-vicky"], [1, DEMO_ME], [1, "demo-benja"], [2, "demo-vicky"], [2, "demo-berni"], [3, "demo-benja"], [4, "demo-benja"], [5, "demo-berni"], [5, DEMO_ME], [5, "demo-vicky"], [6, "demo-vicky"], [6, "demo-benja"],
   ].map(([i, u]) => ({ examId: exams[i as number].id, userId: u as string, joinedAt: created }));
 
   const st = (userId: string, subjectId: string, subjectName: string, status: "cursando" | "regularizada" | "aprobada") =>

@@ -1241,3 +1241,20 @@ body.focus .nav { display: none; }
 .hp-top, .hp-strip { transition: opacity 200ms, transform 200ms; }
 .home-park.scrolled .hp-top, .home-park.scrolled .hp-strip { opacity: 0; transform: translateY(-8px); pointer-events: none; }
 .home-park.scrolled .hp-top > *, .home-park.scrolled .hp-strip > * { pointer-events: none; }
+
+/* Sesiones de estudio grupales */
+.ticket.group .stub { background: var(--blue-soft); color: var(--blue); }
+.ticket.group .stub .eyebrow { color: var(--blue); opacity: 0.8; }
+.ticket.group .cd { background: var(--blue-soft); color: var(--blue); }
+.ticket.group .small .icon, .ticket.group .small svg { vertical-align: -2px; }
+.ticket.group.live { border-color: var(--blue); }
+.ticket.group.live .stub { background: var(--blue); color: #fff; }
+.ticket.group.live .stub .eyebrow { color: rgba(255, 255, 255, 0.8); }
+.ticket.group.live .cd { background: var(--red); color: #fff; }
+.month .d .marks i.group { background: var(--blue); opacity: 0.55; }
+.month .d .marks i.group.mine { opacity: 1; width: 12px; border-radius: 3px; }
+.console.group-live { display: block; width: 100%; text-align: left; font: inherit; cursor: pointer; margin-bottom: 14px; }
+.console.group-live .dotlive { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: inline-block; margin-right: 6px; animation: blink 1.2s infinite; }
+.group-cta { margin: 12px 0 4px; border-style: dashed; color: var(--blue); }
+.group-cta svg { color: var(--blue); }
+.legend .group, .legend i.group { background: var(--blue); }
