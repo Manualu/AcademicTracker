@@ -103,7 +103,7 @@ export function BottomNav() {
     { to: "/ranking", icon: "rank", label: "Ranking" },
   ];
   const right = [
-    { to: "/examenes", icon: "calendar", label: "Exámenes" },
+    { to: "/examenes", icon: "calendar", label: "Calendario" },
     { to: "/carrera", icon: "map", label: "Carrera" },
   ];
   const item = (it: { to: string; icon: string; label: string; end?: boolean }) => (

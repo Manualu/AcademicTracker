@@ -47,12 +47,22 @@ Deno.serve(async (req) => {
       const date = new Date(record.starts_at).toLocaleDateString("es-AR", {
         weekday: "long", day: "numeric", month: "long", timeZone: "America/Argentina/Buenos_Aires",
       });
-      push = {
-        title: `${name} agendó ${EXAM_KIND[record.kind] ?? "examen"} de ${record.subject_name}`,
-        body: `Es el ${date}. Si también lo rendís, sumate.`,
-        url: "./#/examenes",
-        tag: `exam-${record.id}`,
-      };
+      const time = new Date(record.starts_at).toLocaleTimeString("es-AR", {
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Argentina/Buenos_Aires",
+      });
+      push = record.kind === "grupal"
+        ? {
+          title: `${name} armó una sesión de estudio grupal`,
+          body: `${record.subject_name}, el ${date} a las ${time}${record.location ? ` (${record.location})` : ""}. ¿Te sumás?`,
+          url: "./#/examenes",
+          tag: `grupal-${record.id}`,
+        }
+        : {
+          title: `${name} agendó ${EXAM_KIND[record.kind] ?? "examen"} de ${record.subject_name}`,
+          body: `Es el ${date}. Si también lo rendís, sumate.`,
+          url: "./#/examenes",
+          tag: `exam-${record.id}`,
+        };
       break;
     }
     case "subject_status":

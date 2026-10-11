@@ -1,5 +1,5 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Backend, GroupData, Op, Profile, RemoteEvent } from "./types";
+import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
+import type { Backend, GroupData, LiveStudy, Op, Profile, RemoteEvent } from "./types";
 
 type Row = Record<string, any>;
 
@@ -85,6 +85,7 @@ export class SupabaseBackend implements Backend {
   }
 
   async signOut() {
+    if (this.pres) { await this.sb.removeChannel(this.pres); this.pres = null; this.presJoined = false; this.presMe = null; }
     await this.sb.auth.signOut();
   }
 
@@ -112,7 +113,7 @@ export class SupabaseBackend implements Backend {
       })),
       exams: exams.map((r) => ({
         id: r.id, createdBy: r.created_by, subjectName: r.subject_name, kind: r.kind, startsAt: r.starts_at,
-        location: r.location, notes: r.notes, createdAt: r.created_at,
+        location: r.location, notes: r.notes, createdAt: r.created_at, durationMin: r.duration_min ?? null,
       })),
       participants: participants.map((r) => ({ examId: r.exam_id, userId: r.user_id, joinedAt: r.joined_at })),
       recycles: recycles.map((r) => ({ id: r.id, userId: r.user_id, piece: r.piece, createdAt: r.created_at })),
@@ -151,6 +152,7 @@ export class SupabaseBackend implements Backend {
         const e = op.exam;
         check(await sb.from("exams").upsert({
           id: e.id, subject_name: e.subjectName, kind: e.kind, starts_at: e.startsAt, location: e.location, notes: e.notes,
+          ...(e.kind === "grupal" ? { duration_min: e.durationMin ?? null } : {}),
         }, { onConflict: "id", ignoreDuplicates: true }));
         check(await sb.from("exam_participants").upsert({ exam_id: e.id }, { onConflict: "exam_id,user_id", ignoreDuplicates: true }));
         return;
@@ -191,6 +193,48 @@ export class SupabaseBackend implements Backend {
       })
       .subscribe();
     return () => { this.sb.removeChannel(channel); };
+  }
+
+  // ------------------------------------------------------------ presencia en vivo
+  // Canal de Realtime Presence: cada uno publica si está estudiando. No toca la base y se
+  // limpia solo cuando el celular se desconecta (por ejemplo, en modo avión).
+  private pres: RealtimeChannel | null = null;
+  private presJoined = false;
+  private presMe: string | null = null;
+  private presLive: LiveStudy | null = null;
+  private presCbs = new Set<(live: Record<string, LiveStudy>) => void>();
+
+  private ensurePresence(userId: string) {
+    if (this.pres && this.presMe === userId) return;
+    if (this.pres) { void this.sb.removeChannel(this.pres); this.pres = null; this.presJoined = false; }
+    this.presMe = userId;
+    const ch = this.sb.channel("presencia", { config: { presence: { key: userId } } });
+    ch.on("presence", { event: "sync" }, () => {
+      const state = ch.presenceState() as Record<string, { live?: LiveStudy | null }[]>;
+      const out: Record<string, LiveStudy> = {};
+      for (const [k, metas] of Object.entries(state)) {
+        if (k === userId) continue;
+        const live = metas[metas.length - 1]?.live;
+        if (live) out[k] = live;
+      }
+      this.presCbs.forEach((cb) => cb(out));
+    });
+    ch.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") { this.presJoined = true; await ch.track({ live: this.presLive }); }
+      else if (status === "CLOSED" || status === "CHANNEL_ERROR") this.presJoined = false;
+    });
+    this.pres = ch;
+  }
+
+  setPresence(userId: string, live: LiveStudy | null) {
+    this.presLive = live;
+    this.ensurePresence(userId);
+    if (this.presJoined) void this.pres!.track({ live }).catch(() => { /* se reintenta al reconectar */ });
+  }
+
+  onPresence(cb: (live: Record<string, LiveStudy>) => void) {
+    this.presCbs.add(cb);
+    return () => { this.presCbs.delete(cb); };
   }
 
   async savePushSubscription(sub: PushSubscriptionJSON) {

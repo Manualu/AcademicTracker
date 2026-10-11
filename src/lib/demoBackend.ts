@@ -3,9 +3,9 @@
 import { applyOp } from "./apply";
 import { rollPiece } from "./catalog";
 import { addDays, dayKey, uuid } from "./time";
-import type { Backend, GroupData, Op, Profile, RemoteEvent, StudySession } from "./types";
+import type { Backend, GroupData, LiveStudy, Op, Profile, RemoteEvent, StudySession } from "./types";
 
-const DB_KEY = "remontada.demo.db.v2";
+const DB_KEY = "remontada.demo.db.v4";
 const AUTH_KEY = "remontada.demo.user";
 export const DEMO_ME = "demo-manu";
 /** Días de historial inventado: alcanza para ver el parque con varias etapas desbloqueadas */
@@ -52,7 +52,7 @@ function seed(): GroupData {
         const [sid, sname] = pool[Math.floor(rand() * pool.length)];
         const minutes = [25, 25, 50, 50, 50, 75, 90, 120][Math.floor(rand() * 8)];
         const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9 + i * 3 + Math.floor(rand() * 2), Math.floor(rand() * 60));
-        if (start > now) continue;
+        if (start.getTime() + minutes * 60_000 > now.getTime()) continue;
         const abandoned = rand() < 0.08;
         const sidv = uuid();
         sessions.push({
@@ -86,9 +86,11 @@ function seed(): GroupData {
     { id: uuid(), createdBy: "demo-vicky", subjectName: "Transformación de la Energía", kind: "parcial" as const, startsAt: at(20, 14), location: "Las Heras", notes: null, createdAt: created },
     { id: uuid(), createdBy: "demo-benja", subjectName: "Análisis Matemático II", kind: "final" as const, startsAt: at(31, 9), location: null, notes: null, createdAt: created },
     { id: uuid(), createdBy: "demo-benja", subjectName: "Química Básica", kind: "recuperatorio" as const, startsAt: at(-9, 9), location: null, notes: null, createdAt: created },
+    { id: uuid(), createdBy: "demo-berni", subjectName: "Probabilidad", kind: "grupal" as const, startsAt: at(1, 18), durationMin: 120, location: "https://meet.google.com/rmt-prob-abc", notes: "Hacemos el parcial viejo de 2024 y comparamos", createdAt: created },
+    { id: uuid(), createdBy: "demo-vicky", subjectName: "Economía", kind: "grupal" as const, startsAt: at(4, 15), durationMin: 180, location: "Biblioteca de Paseo Colón", notes: null, createdAt: created },
   ];
   const participants = [
-    [0, DEMO_ME], [0, "demo-berni"], [0, "demo-vicky"], [1, DEMO_ME], [1, "demo-benja"], [2, "demo-vicky"], [2, "demo-berni"], [3, "demo-benja"], [4, "demo-benja"],
+    [0, DEMO_ME], [0, "demo-berni"], [0, "demo-vicky"], [1, DEMO_ME], [1, "demo-benja"], [2, "demo-vicky"], [2, "demo-berni"], [3, "demo-benja"], [4, "demo-benja"], [5, "demo-berni"], [5, DEMO_ME], [5, "demo-vicky"], [6, "demo-vicky"], [6, "demo-benja"],
   ].map(([i, u]) => ({ examId: exams[i as number].id, userId: u as string, joinedAt: created }));
 
   const st = (userId: string, subjectId: string, subjectName: string, status: "cursando" | "regularizada" | "aprobada") =>
@@ -171,7 +173,24 @@ export class DemoBackend implements Backend {
     return () => { this.listeners.delete(cb); };
   }
 
+  // Presencia simulada: Berni está estudiando Probabilidad (termina a los 20 s, ver simulateFriend)
+  // y a los 45 s Benja arranca Economía.
+  private presence: Record<string, LiveStudy> = {
+    "demo-berni": { subject: "Probabilidad", startedAt: Date.now() - 49 * 60_000 - 40_000, targetMin: 50 },
+  };
+  private presCbs = new Set<(live: Record<string, LiveStudy>) => void>();
+  private emitPresence() { this.presCbs.forEach((cb) => cb({ ...this.presence })); }
+  setPresence() { /* en la demo no hay otros celulares a quienes avisar */ }
+  onPresence(cb: (live: Record<string, LiveStudy>) => void) {
+    this.presCbs.add(cb);
+    cb({ ...this.presence });
+    return () => { this.presCbs.delete(cb); };
+  }
+
   private simulateFriend() {
+    delete this.presence["demo-berni"];
+    this.emitPresence();
+    setTimeout(() => { this.presence["demo-benja"] = { subject: "Economía", startedAt: Date.now(), targetMin: 50 }; this.emitPresence(); }, 25_000);
     const minutes = 50;
     const id = uuid();
     const s: StudySession = {

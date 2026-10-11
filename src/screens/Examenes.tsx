@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Avatar, Icon, ScreenHead, Sheet } from "../components/ui";
+import { groupEnd, groupLive, groupMinutes, groupRemaining, isExam, isGroup, isUrl, placeLabel } from "../lib/agenda";
 import { useMe, useStore } from "../lib/store";
-import { addDays, capitalize, dayKey, daysUntil, fmtTime, startOfWeek, uuid } from "../lib/time";
+import { addDays, capitalize, dayKey, daysUntil, fmtMinutes, fmtTime, startOfWeek, uuid } from "../lib/time";
+import { useTimer } from "../lib/timer";
 import type { Exam, ExamKind } from "../lib/types";
 
 const KINDS: { key: ExamKind; label: string }[] = [
@@ -11,7 +14,8 @@ const KINDS: { key: ExamKind; label: string }[] = [
   { key: "coloquio", label: "Coloquio" },
   { key: "otro", label: "Otro" },
 ];
-const kindLabel = (k: ExamKind) => KINDS.find((x) => x.key === k)!.label;
+const kindLabel = (k: ExamKind) => (k === "grupal" ? "Sesión grupal" : KINDS.find((x) => x.key === k)?.label ?? "Examen");
+const GROUP_DURATIONS = [60, 90, 120, 180, 240];
 const short = (d: Date, o: Intl.DateTimeFormatOptions) => d.toLocaleDateString("es-AR", o).replace(".", "");
 
 function countdownText(n: number) {
@@ -38,13 +42,14 @@ function MonthCalendar({ exams, mine, selected, onSelect }: {
   }
   const today = dayKey(now);
   const inMonth = exams.filter((e) => { const d = new Date(e.startsAt); return d.getMonth() === first.getMonth() && d.getFullYear() === first.getFullYear(); });
+  const nEx = inMonth.filter(isExam).length, nGr = inMonth.length - nEx;
   return (
     <div className="card">
       <div className="cal-head">
         <button className="icon-btn" onClick={() => setOffset(offset - 1)} aria-label="Mes anterior"><Icon name="back" /></button>
         <div className="center">
           <div className="h2">{capitalize(first.toLocaleDateString("es-AR", { month: "long" }))} <span className="faint" style={{ fontWeight: 500 }}>{first.getFullYear()}</span></div>
-          <div className="eyebrow" style={{ marginTop: 3 }}>{inMonth.length} {inMonth.length === 1 ? "examen" : "exámenes"} en el grupo</div>
+          <div className="eyebrow" style={{ marginTop: 3 }}>{nEx} {nEx === 1 ? "examen" : "exámenes"} · {nGr} {nGr === 1 ? "sesión grupal" : "sesiones grupales"}</div>
         </div>
         <button className="icon-btn" onClick={() => setOffset(offset + 1)} aria-label="Mes siguiente"><Icon name="next" /></button>
       </div>
@@ -61,20 +66,57 @@ function MonthCalendar({ exams, mine, selected, onSelect }: {
             <button key={k} className={cls} disabled={!has} onClick={() => onSelect(selected === k ? null : k)}
               aria-label={has ? `${d.getDate()}: ${list.map((e) => e.subjectName).join(", ")}` : undefined}>
               {d.getDate()}
-              <span className="marks">{list.slice(0, 3).map((e) => <i key={e.id} className={mine.has(e.id) ? "mine" : ""} />)}</span>
+              <span className="marks">{list.slice(0, 3).map((e) => <i key={e.id} className={`${mine.has(e.id) ? "mine" : ""} ${isGroup(e) ? "group" : ""}`} />)}</span>
             </button>
           );
         })}
       </div>
       <div className="legend" style={{ marginTop: 12 }}>
-        <span><i style={{ background: "var(--yellow-2)", width: 14 }} />Lo rendís</span>
-        <span><i style={{ background: "var(--ink-3)", borderRadius: 5 }} />Lo rinde alguien del grupo</span>
+        <span><i style={{ background: "var(--yellow-2)", width: 14 }} />Examen tuyo</span>
+        <span><i style={{ background: "var(--blue)", width: 14 }} />Sesión grupal a la que vas</span>
+        <span><i style={{ background: "var(--ink-3)", borderRadius: 5 }} />Del resto del grupo</span>
       </div>
     </div>
   );
 }
 
+function GroupCard({ exam, onOpen }: { exam: Exam; onOpen: () => void }) {
+  const { data, userId } = useStore();
+  const people = data.participants.filter((p) => p.examId === exam.id).map((p) => data.profiles.find((x) => x.id === p.userId)).filter(Boolean);
+  const imIn = people.some((p) => p!.id === userId);
+  const n = daysUntil(exam.startsAt);
+  const d = new Date(exam.startsAt);
+  const live = groupLive(exam);
+  const over = groupEnd(exam) < new Date();
+  return (
+    <button className={`ticket group ${live ? "live" : ""} ${over ? "past" : ""}`} onClick={onOpen}>
+      <div className="stub">
+        <span className="eyebrow">{short(d, { weekday: "short" })}</span>
+        <span className="num">{d.getDate()}</span>
+        <span className="eyebrow">{short(d, { month: "short" })}</span>
+      </div>
+      <div className="body">
+        <div className="row between" style={{ alignItems: "flex-start" }}>
+          <span className="title">{exam.subjectName}</span>
+          <span className="cd">{live ? "Ahora" : countdownText(n)}</span>
+        </div>
+        <span className="small muted ellipsis"><Icon name="users" size={13} /> Sesión grupal · {fmtTime(d)} a {fmtTime(groupEnd(exam))}{exam.location ? ` · ${placeLabel(exam.location)}` : ""}</span>
+        <div className="row" style={{ marginTop: 6, gap: 8 }}>
+          <div className="avatar-stack">{people.map((p) => <Avatar key={p!.id} profile={p} size={24} />)}</div>
+          <span className="tiny muted">{imIn ? (people.length > 1 ? `Vas con ${people.length - 1} más` : "Vas vos") : `${people.length} ${people.length === 1 ? "va" : "van"}`}</span>
+          {!imIn && !over && <span className="tiny strong" style={{ marginLeft: "auto", color: "var(--blue)" }}>¿Te sumás?</span>}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function ExamCard({ exam, onOpen }: { exam: Exam; onOpen: () => void }) {
+  if (isGroup(exam)) return <GroupCard exam={exam} onOpen={onOpen} />;
+  return <ExamTicket exam={exam} onOpen={onOpen} />;
+}
+
+function ExamTicket({ exam, onOpen }: { exam: Exam; onOpen: () => void }) {
   const { data, userId } = useStore();
   const people = data.participants.filter((p) => p.examId === exam.id).map((p) => data.profiles.find((x) => x.id === p.userId)).filter(Boolean);
   const imIn = data.participants.some((p) => p.examId === exam.id && p.userId === userId);
@@ -132,9 +174,71 @@ function NextExam({ exam, onOpen }: { exam: Exam; onOpen: () => void }) {
   );
 }
 
-function ExamDetail({ exam, onClose }: { exam: Exam | null; onClose: () => void }) {
+function GroupDetail({ exam, onClose }: { exam: Exam; onClose: () => void }) {
   const { data, userId, dispatch } = useStore();
+  const { running, start } = useTimer();
+  const nav = useNavigate();
+  const people = data.participants.filter((p) => p.examId === exam.id).map((p) => data.profiles.find((x) => x.id === p.userId)).filter(Boolean);
+  const imIn = people.some((p) => p!.id === userId);
+  const d = new Date(exam.startsAt);
+  const over = groupEnd(exam) < new Date();
+  const live = groupLive(exam);
+  const n = daysUntil(exam.startsAt);
+  const author = data.profiles.find((p) => p.id === exam.createdBy);
+  const join = () => dispatch({ kind: "exam.join", participant: { examId: exam.id, userId: userId!, joinedAt: new Date().toISOString() } });
+  const startHere = () => {
+    if (!imIn) join();
+    start({ subjectId: null, subjectName: exam.subjectName, targetMin: groupRemaining(exam) });
+    onClose();
+    nav("/estudiar");
+  };
+  return (
+    <Sheet open onClose={onClose} label={exam.subjectName} title={exam.subjectName} eyebrow={`Sesión grupal · ${live ? "ahora" : countdownText(n).toLowerCase()}`}>
+      <div className="stack">
+        <div className="card stack" style={{ gap: 10 }}>
+          <div className="row"><Icon name="calendar" size={20} /><span><b>{capitalize(short(d, { weekday: "long", day: "numeric", month: "long" }))}</b>, {fmtTime(d)} a {fmtTime(groupEnd(exam))} h <span className="faint">({fmtMinutes(groupMinutes(exam))})</span></span></div>
+          {exam.location && (
+            <div className="row"><Icon name="pin" size={20} />
+              {isUrl(exam.location) ? <a href={exam.location.trim()} target="_blank" rel="noreferrer" className="strong" style={{ color: "var(--blue)", wordBreak: "break-all" }}>Abrir el link de la videollamada</a> : <span>{exam.location}</span>}
+            </div>
+          )}
+          {exam.notes && <div className="row" style={{ alignItems: "flex-start" }}><Icon name="book" size={20} /><span className="small">{exam.notes}</span></div>}
+        </div>
+        <div className="card tight">
+          <p className="eyebrow" style={{ padding: "12px 0 4px" }}>Van · {people.length}</p>
+          <ul className="feed">
+            {people.map((p) => (
+              <li key={p!.id}><Avatar profile={p} size={34} /><span className="grow strong">{p!.displayName}</span>{p!.id === userId && <span className="me-tag">vos</span>}</li>
+            ))}
+          </ul>
+        </div>
+        {live && !running && (
+          <button className="btn primary big block" onClick={startHere}><Icon name="play" size={20} />Empezar a estudiar · {fmtMinutes(groupRemaining(exam))}</button>
+        )}
+        {!over && (imIn ? (
+          <button className="btn block" onClick={() => { dispatch({ kind: "exam.leave", examId: exam.id, userId: userId! }); onClose(); }}>Ya no voy</button>
+        ) : (
+          <button className={`btn block ${live ? "" : "primary big"}`} onClick={() => { join(); onClose(); }}><Icon name="plus" size={20} />Me sumo</button>
+        ))}
+        {!live && !over && imIn && <p className="tiny faint center" style={{ margin: 0 }}>Cuando arranque la sesión, desde acá ponés el cronómetro con el tiempo que queda.</p>}
+        {exam.createdBy === userId ? (
+          <button className="btn danger block" onClick={() => { if (confirm("¿Borrar esta sesión para todo el grupo?")) { dispatch({ kind: "exam.delete", id: exam.id }); onClose(); } }}>
+            <Icon name="trash" size={18} />Borrar sesión
+          </button>
+        ) : author && <p className="tiny faint center" style={{ margin: 0 }}>La armó {author.displayName}</p>}
+      </div>
+    </Sheet>
+  );
+}
+
+function ExamDetail({ exam, onClose }: { exam: Exam | null; onClose: () => void }) {
   if (!exam) return null;
+  if (isGroup(exam)) return <GroupDetail exam={exam} onClose={onClose} />;
+  return <ExamOnlyDetail exam={exam} onClose={onClose} />;
+}
+
+function ExamOnlyDetail({ exam, onClose }: { exam: Exam; onClose: () => void }) {
+  const { data, userId, dispatch } = useStore();
   const people = data.participants.filter((p) => p.examId === exam.id).map((p) => data.profiles.find((x) => x.id === p.userId)).filter(Boolean);
   const imIn = people.some((p) => p!.id === userId);
   const d = new Date(exam.startsAt);
@@ -174,9 +278,12 @@ function ExamDetail({ exam, onClose }: { exam: Exam | null; onClose: () => void 
   );
 }
 
-function AddExam({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AddExam({ open, onClose, initialMode }: { open: boolean; onClose: () => void; initialMode: "examen" | "grupal" }) {
   const { data, userId, dispatch, toast } = useStore();
   const me = useMe();
+  const [mode, setMode] = useState<"examen" | "grupal">(initialMode);
+  const [duration, setDuration] = useState(120);
+  const group = mode === "grupal";
   const [subject, setSubject] = useState("");
   const [kind, setKind] = useState<ExamKind>("parcial");
   const [date, setDate] = useState("");
@@ -195,18 +302,25 @@ function AddExam({ open, onClose }: { open: boolean; onClose: () => void }) {
     dispatch({
       kind: "exam.add",
       exam: {
-        id: uuid(), createdBy: userId, subjectName: subject.trim(), kind, startsAt: new Date(y, m - 1, d, hh, mm).toISOString(),
+        id: uuid(), createdBy: userId, subjectName: subject.trim(), kind: group ? "grupal" : kind, startsAt: new Date(y, m - 1, d, hh, mm).toISOString(),
         location: location.trim() || null, notes: notes.trim() || null, createdAt: new Date().toISOString(),
+        durationMin: group ? duration : null,
       },
     });
-    toast({ tone: "success", title: "Examen agendado", body: "Le avisamos al grupo para que se sume quien lo rinda.", icon: "calendar" });
+    toast(group
+      ? { tone: "success", title: "Sesión grupal armada", body: "Le avisamos al grupo para que se sume.", icon: "users" }
+      : { tone: "success", title: "Examen agendado", body: "Le avisamos al grupo para que se sume quien lo rinda.", icon: "calendar" });
     setSubject(""); setDate(""); setLocation(""); setNotes("");
     onClose();
   }
 
   return (
-    <Sheet open={open} onClose={onClose} label="Agendar examen" title="Agendar examen" eyebrow="Para todo el grupo">
+    <Sheet open={open} onClose={onClose} label={group ? "Armar sesión grupal" : "Agendar examen"} title={group ? "Sesión grupal" : "Agendar examen"} eyebrow="Para todo el grupo">
       <div className="stack" style={{ gap: 16 }}>
+        <div className="seg" role="group" aria-label="Qué agendás">
+          <button aria-pressed={!group} onClick={() => setMode("examen")}>Examen</button>
+          <button aria-pressed={group} onClick={() => setMode("grupal")}>Sesión grupal</button>
+        </div>
         <label className="field">
           <span>Materia</span>
           <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={80} list="exam-subjects" placeholder="Probabilidad" />
@@ -215,19 +329,28 @@ function AddExam({ open, onClose }: { open: boolean; onClose: () => void }) {
         {suggestions.length > 0 && (
           <div className="chips" style={{ marginTop: -6 }}>{suggestions.slice(0, 6).map((s) => <button key={s} className="chip" aria-pressed={subject === s} onClick={() => setSubject(s)}>{s}</button>)}</div>
         )}
-        <div className="field">
-          <span>Tipo</span>
-          <div className="chips" role="group" aria-label="Tipo">
-            {KINDS.map((k) => <button key={k.key} className="chip" aria-pressed={kind === k.key} onClick={() => setKind(k.key)}>{k.label}</button>)}
+        {group ? (
+          <div className="field">
+            <span>Duración</span>
+            <div className="chips" role="group" aria-label="Duración">
+              {GROUP_DURATIONS.map((m) => <button key={m} className="chip" aria-pressed={duration === m} onClick={() => setDuration(m)}>{fmtMinutes(m)}</button>)}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="field">
+            <span>Tipo</span>
+            <div className="chips" role="group" aria-label="Tipo">
+              {KINDS.map((k) => <button key={k.key} className="chip" aria-pressed={kind === k.key} onClick={() => setKind(k.key)}>{k.label}</button>)}
+            </div>
+          </div>
+        )}
         <div className="row" style={{ alignItems: "flex-start" }}>
           <label className="field grow"><span>Día</span><input className="input" type="date" value={date} min={dayKey(new Date())} onChange={(e) => setDate(e.target.value)} /></label>
           <label className="field" style={{ width: 120 }}><span>Hora</span><input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
         </div>
-        <label className="field"><span>Lugar (opcional)</span><input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Paseo Colón, aula 302" /></label>
-        <label className="field"><span>Notas (opcional)</span><textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Qué temas entran, qué llevar…" /></label>
-        <button className="btn primary big block" disabled={!valid} onClick={save}>{valid ? "Agendar examen" : "Completá materia y día"}</button>
+        <label className="field"><span>{group ? "Dónde (lugar o link de videollamada)" : "Lugar (opcional)"}</span><input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={group ? "Biblioteca de Paseo Colón, o https://meet…" : "Paseo Colón, aula 302"} /></label>
+        <label className="field"><span>Notas (opcional)</span><textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={group ? "Qué van a repasar, qué llevar…" : "Qué temas entran, qué llevar…"} /></label>
+        <button className="btn primary big block" disabled={!valid} onClick={save}>{!valid ? "Completá materia y día" : group ? "Armar sesión grupal" : "Agendar examen"}</button>
       </div>
     </Sheet>
   );
@@ -235,8 +358,13 @@ function AddExam({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 export default function Examenes() {
   const { data, userId } = useStore();
-  const [adding, setAdding] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [adding, setAdding] = useState<"examen" | "grupal" | null>(null);
+  const [params, setParams] = useSearchParams();
+  const [openId, setOpenIdState] = useState<string | null>(params.get("open"));
+  const setOpenId = (id: string | null) => {
+    setOpenIdState(id);
+    if (!id && params.has("open")) setParams({}, { replace: true });
+  };
   const [day, setDay] = useState<string | null>(null);
   const [showPast, setShowPast] = useState(false);
   const mine = new Set(data.participants.filter((p) => p.userId === userId).map((p) => p.examId));
@@ -244,16 +372,27 @@ export default function Examenes() {
   const sorted = [...data.exams].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const upcoming = sorted.filter((e) => dayKey(e.startsAt) >= today);
   const past = sorted.filter((e) => dayKey(e.startsAt) < today).reverse();
-  const next = upcoming.find((e) => mine.has(e.id) && new Date(e.startsAt) > new Date());
+  const next = upcoming.find((e) => isExam(e) && mine.has(e.id) && new Date(e.startsAt) > new Date());
+  const liveGroup = sorted.find((e) => isGroup(e) && groupLive(e));
   const list = day ? sorted.filter((e) => dayKey(e.startsAt) === day) : upcoming.filter((e) => e.id !== next?.id);
   const opened = data.exams.find((e) => e.id === openId) ?? null;
 
   return (
     <>
-      <ScreenHead eyebrow="Calendario del grupo" title="Exámenes"
-        right={<button className="btn primary sm" onClick={() => setAdding(true)}><Icon name="plus" size={18} stroke={2.4} />Agendar</button>} />
+      <ScreenHead eyebrow="Exámenes y sesiones del grupo" title="Calendario"
+        right={<button className="btn primary sm" onClick={() => setAdding("examen")}><Icon name="plus" size={18} stroke={2.4} />Agendar</button>} />
+
+      {liveGroup && (
+        <button className="console group-live" onClick={() => setOpenId(liveGroup.id)}>
+          <p className="eyebrow"><span className="dotlive" /> Sesión grupal en curso · hasta las {fmtTime(groupEnd(liveGroup))}</p>
+          <h2 className="h1" style={{ marginTop: 8 }}>{liveGroup.subjectName}</h2>
+          <p className="small muted" style={{ margin: "6px 0 0" }}>{placeLabel(liveGroup.location) || "Sin lugar cargado"} · tocá para sumarte y poner el cronómetro</p>
+        </button>
+      )}
 
       {next && <div style={{ marginBottom: 14 }}><NextExam exam={next} onOpen={() => setOpenId(next.id)} /></div>}
+
+      <button className="btn block group-cta" onClick={() => setAdding("grupal")}><Icon name="users" size={18} />Armar una sesión de estudio grupal</button>
 
       <MonthCalendar exams={data.exams} mine={mine} selected={day} onSelect={setDay} />
 
@@ -264,8 +403,8 @@ export default function Examenes() {
       <div className="stack">
         {list.length === 0 && (
           <div className="card empty">
-            <div className="h2">{next ? "Nada más por ahora" : "No hay exámenes agendados"}</div>
-            Agendá el próximo parcial y te avisamos una semana antes para que arranques a practicar.
+            <div className="h2">{next ? "Nada más por ahora" : "No hay nada agendado"}</div>
+            Agendá el próximo parcial o armá una sesión de estudio con el grupo.
           </div>
         )}
         {list.map((e) => <ExamCard key={e.id} exam={e} onOpen={() => setOpenId(e.id)} />)}
@@ -281,7 +420,7 @@ export default function Examenes() {
         </>
       )}
 
-      <AddExam open={adding} onClose={() => setAdding(false)} />
+      {adding && <AddExam open initialMode={adding} onClose={() => setAdding(null)} />}
       <ExamDetail exam={opened} onClose={() => setOpenId(null)} />
     </>
   );

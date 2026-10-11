@@ -111,3 +111,4 @@ scripts/build-planes.mjs       regenera los planes desde FIUBA-Map
 - El sorteo usa el id de la sesión como semilla, así que es reproducible.
 - El parque (`src/iso/park.js`) crece con las horas de todo el grupo desde la firma del tratado; cada uno tiene una nave que sube de nivel con sus propias horas. Tiene lugar para 4 naves.
 - Si cambiás el catálogo, corré `npm run piezas` para regenerar los nombres que usan los avisos push.
+- El Inicio es el parque: cada uno aparece como un personaje con su avatar en la vereda de su nave. Si está estudiando, su nave se prende con un globito que dice qué y hace cuánto (presencia en vivo con Supabase Realtime, sin tablas nuevas); si hizo actividad física hoy sale a trotar; si no estudió ni hoy ni ayer, se sienta en un banco con la nave apagada. Cada sesión nueva se festeja sobre la nave de quien la hizo.

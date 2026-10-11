@@ -5,8 +5,8 @@ import { backend, useStore } from "../lib/store";
 
 /** Mundo del parque calculado con los datos del grupo (y cargado en el motor). */
 export function useParkWorld(): ParkWorld {
-  const { data } = useStore();
-  const world = useMemo(() => buildWorld(data, backend.isDemo), [data]);
+  const { data, live, userId } = useStore();
+  const world = useMemo(() => buildWorld(data, backend.isDemo, live, userId), [data, live, userId]);
   applyWorld(world);
   return world;
 }
