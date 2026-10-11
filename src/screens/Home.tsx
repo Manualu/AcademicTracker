@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ActivitySheet } from "../components/ActivitySheet";
-import { IsoFloor } from "../components/IsoFloor";
 import { IsoPiece } from "../components/IsoPiece";
+import { ParkCanvas, useParkWorld } from "../components/ParkCanvas";
+import { STAGES, stageIdx } from "../iso/park";
+import { useParkMilestones } from "./Parque";
 import { Avatar, Icon, isoWeek, Ring } from "../components/ui";
 import { buildFeed, type FeedItem } from "../lib/feed";
 import { activitiesOf, sessionsOf, weekActivities, weekMinutes, weekSummary } from "../lib/stats";
@@ -106,7 +108,11 @@ export default function Home() {
   const hour = now.getHours();
   const greet = hour < 6 ? "Buenas noches" : hour < 13 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
 
-  const weekPieces = [...week.weekSessions].sort((a, b) => a.startedAt.localeCompare(b.startedAt)).map((s) => s.piece);
+  const weekPieces = [...week.weekSessions].sort((a, b) => a.startedAt.localeCompare(b.startedAt)).map((s) => (s.outcome === "abandoned" ? "chatarra" : s.piece));
+  const world = useParkWorld();
+  useParkMilestones(world);
+  const stage = stageIdx(world.groupHours);
+  const nextStage = STAGES[stage + 1];
   const leader = crew[0];
 
   let lastDay = "";
@@ -227,24 +233,36 @@ export default function Home() {
       })()}
 
       <div className="section-title">
-        <h2 className="h2">Tu planta esta semana</h2>
-        <Link to={`/perfil/${userId}`} className="link">Ver todo</Link>
+        <h2 className="h2">Parque del grupo</h2>
+        <Link to="/parque" className="link">Abrir</Link>
       </div>
-      {weekPieces.length === 0 ? (
-        <div className="card empty">
-          <IsoPiece piece="engranaje" size={72} locked />
-          <div className="h2">Platea vacía</div>
-          Cada sesión de estudio fabrica una pieza. Arrancá una y aparece acá.
+      <Link to="/parque" className="park-card" aria-label={`Abrir el parque. Etapa ${stage + 1}: ${STAGES[stage].n}`}>
+        <div className="park-preview">
+          <ParkCanvas compact label="Vista del parque industrial del grupo" />
+          <div className="pp-hud">
+            <span className="pp-chip"><span className="eyebrow">Etapa {stage + 1}/{STAGES.length}</span><b>{STAGES[stage].n}</b></span>
+            <span className="pp-chip num">{Math.round(world.groupHours)} h</span>
+          </div>
+          <span className="pp-open">Entrar al parque <Icon name="next" size={16} stroke={2.4} /></span>
         </div>
-      ) : (
-        <div className="card plant-card">
-          <IsoFloor pieces={weekPieces} />
-          <div className="plant-meta">
-            <span className="eyebrow">{weekPieces.length} {weekPieces.length === 1 ? "pieza" : "piezas"} · {fmtHours(week.minutes)} h</span>
-            <span className="eyebrow">{weekPieces.filter((p) => p === "chatarra").length > 0 ? `${weekPieces.filter((p) => p === "chatarra").length} chatarra` : "Sin chatarra"}</span>
+        <div className="pp-foot">
+          {nextStage ? (
+            <>
+              <div className="mini-bar"><b style={{ width: `${((world.groupHours - STAGES[stage].h) / (nextStage.h - STAGES[stage].h)) * 100}%` }} /></div>
+              <p className="tiny muted" style={{ margin: "6px 0 0" }}>Faltan <b>{Math.ceil(nextStage.h - world.groupHours)} h</b> del grupo para: {nextStage.n}</p>
+            </>
+          ) : <p className="tiny muted" style={{ margin: 0 }}>Parque completo.</p>}
+          <div className="week-strip">
+            <span className="eyebrow">Tu semana</span>
+            {weekPieces.length === 0 ? <span className="tiny muted">Todavía no fabricaste nada.</span> : (
+              <span className="strip">
+                {weekPieces.slice(-7).reverse().map((p, i) => <IsoPiece key={i} piece={p} size={34} height={30} />)}
+                {weekPieces.length > 7 && <span className="more">+{weekPieces.length - 7}</span>}
+              </span>
+            )}
           </div>
         </div>
-      )}
+      </Link>
 
       <div className="section-title"><h2 className="h2">Movimiento del grupo</h2></div>
       <div className="card tight">

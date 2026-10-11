@@ -1,5 +1,6 @@
 import { activitiesOf, bestStreak, closedWeeks, historyStart, sessionsOf, weekActivities, weekMinutes } from "./stats";
 import { addDays, dayKey, startOfWeek, WEEK_GOAL_ACTIVITY, WEEK_GOAL_MIN } from "./time";
+import { CATALOG, inventoryOf, pieceDef, SETS } from "./catalog";
 import type { GroupData } from "./types";
 
 export type Trophy = {
@@ -126,6 +127,29 @@ const DEFS: Def[] = [
       const n = c.data.statuses.filter((s) => s.userId === c.userId && s.status === "aprobada" && !s.subjectId.startsWith("CBC")).length;
       return [n >= 5, `${n} de 5`];
     },
+  },
+  {
+    id: "pieza-epica", name: "Pieza de colección", glyph: "◆",
+    description: "Conseguí una pieza épica o legendaria.",
+    check: (c) => [...inventoryOf(c.data, c.userId).keys()].some((id) => { const r = pieceDef(id).r; return r === "epica" || r === "legendaria"; }),
+  },
+  {
+    id: "reliquia", name: "Reliquia", glyph: "★",
+    description: "Conseguí una de las seis reliquias legendarias del Museo de la Ingeniería.",
+    check: (c) => [...inventoryOf(c.data, c.userId).keys()].some((id) => pieceDef(id).r === "legendaria"),
+  },
+  {
+    id: "coleccionista", name: "Coleccionista", glyph: "18",
+    description: "Juntá la mitad del catálogo: 18 piezas distintas.",
+    check: (c) => {
+      const n = [...inventoryOf(c.data, c.userId).keys()].filter((id) => id !== "chatarra").length;
+      return [n >= CATALOG.length / 2, `${n} de ${CATALOG.length / 2}`];
+    },
+  },
+  {
+    id: "juego-completo", name: "Juego completo", glyph: "4/4",
+    description: "Completá una colección (por ejemplo, la Línea de montaje).",
+    check: (c) => { const inv = inventoryOf(c.data, c.userId); return SETS.some((st) => st.ids.every((id) => inv.has(id))); },
   },
 ];
 

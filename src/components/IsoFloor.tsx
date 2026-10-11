@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { drawPiece, makePainter, PIECE_BY_ID } from "../iso/iso";
+import { drawPiece, makePainter } from "../iso/iso";
+import { pieceDef } from "../lib/catalog";
 import type { PieceKey } from "../lib/types";
-import { ISO_ID } from "./IsoPiece";
 
 /** Platea de hormigón con las piezas de la semana, en isométrico. */
 export function IsoFloor({ pieces, slots }: { pieces: PieceKey[]; slots?: number }) {
@@ -23,7 +23,7 @@ export function IsoFloor({ pieces, slots }: { pieces: PieceKey[]; slots?: number
     const n = Math.max(pieces.length, slots ?? 0, 1);
     const cols = Math.max(3, Math.ceil(Math.sqrt(n * 1.5)));
     const rows = Math.max(2, Math.ceil(n / cols));
-    const maxH = Math.max(0.6, ...pieces.map((p) => PIECE_BY_ID[ISO_ID[p]].h ?? 0.9));
+    const maxH = Math.max(0.6, ...pieces.map((p) => pieceDef(p).h ?? 0.9));
     const slab = 0.18;
     const tw = Math.min(110, (w - 20) / ((cols + rows) / 2));
     const height = Math.round(((cols + rows) / 4) * tw + (maxH * 0.62 + slab * 0.62) * tw + 22);
@@ -60,7 +60,7 @@ export function IsoFloor({ pieces, slots }: { pieces: PieceKey[]; slots?: number
     // Llenamos primero las del fondo para que la platea se lea de atrás hacia adelante
     pieces.slice(0, cols * rows).forEach((p, i) => {
       const [x, y] = cells[i];
-      drawPiece(P, PIECE_BY_ID[ISO_ID[p]], x, y, 1.2, (i * 3) % 4 === 1 ? 1 : 0, { mini: true });
+      drawPiece(P, pieceDef(p), x, y, 1.2, (i * 3) % 4 === 1 ? 1 : 0, { mini: true });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [w, pieces.join(","), slots]);

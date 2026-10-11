@@ -8,6 +8,7 @@ import Estudiar from "./screens/Estudiar";
 import Examenes from "./screens/Examenes";
 import Home from "./screens/Home";
 import Login from "./screens/Login";
+import Parque from "./screens/Parque";
 import Perfil from "./screens/Perfil";
 import Ranking from "./screens/Ranking";
 
@@ -34,6 +35,7 @@ function Shell() {
           <Route path="/examenes" element={<Examenes />} />
           <Route path="/carrera" element={<Carrera />} />
           <Route path="/perfil/:id" element={<Perfil />} />
+          <Route path="/parque" element={<Parque />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -29,7 +29,7 @@ Si no configurás Supabase, la app arranca en **modo demo** con un grupo inventa
 ### 1. Supabase
 
 1. Creá un proyecto gratis en [supabase.com](https://supabase.com). Te conviene la región São Paulo, que es la más cercana.
-2. En **SQL Editor**, pegá y corré `supabase/migrations/0001_schema.sql`.
+2. En **SQL Editor**, pegá y corré `supabase/migrations/0001_schema.sql` y después `supabase/migrations/0002_parque.sql` (el parque y el reciclaje de chatarra). Si ya tenías la base andando, alcanza con correr la 0002.
 3. Todavía en el SQL Editor, cambiá los tres valores de configuración:
    ```sql
    update app_config set value = 'EL-CODIGO-DEL-GRUPO' where key = 'invite_code';
@@ -93,6 +93,7 @@ src/
   data/planes/            planes de FIUBA (de FIUBA-Map)
 supabase/
   migrations/0001_schema.sql   tablas, permisos, registro con código, avisos en vivo
+  migrations/0002_parque.sql   reciclaje de chatarra y paso de "tornillo" al catálogo nuevo
   cron.sql                     avisos programados
   functions/notify             aviso al grupo cuando alguien carga algo
   functions/scheduled          8:30, exámenes, domingo y lunes
@@ -103,3 +104,10 @@ scripts/build-planes.mjs       regenera los planes desde FIUBA-Map
 
 - Planes de estudio: [FIUBA-Map](https://github.com/fdelmazo/FIUBA-Map), de Federico del Mazo (MIT).
 - Avatares: [DiceBear](https://www.dicebear.com). Bottts (Pablo Stanley), Notionists (Zoish, CC0), Adventurer (Lisa Wischofsky, CC BY 4.0), Lorelei (Lisa Wischofsky, CC0), Fun Emoji (Davis Uche, CC BY 4.0), Pixel Art (CC0), Big Smile (Ashley Seo, CC BY 4.0), Thumbs (CC0).
+
+## Parque y piezas
+
+- Cada sesión terminada sortea una pieza del catálogo (36 máquinas en 6 categorías). La duración define la categoría, la rareza sale al azar (62 % común, 26 % rara, 10 % épica, 2 % legendaria) y la materia inclina el sorteo hacia máquinas de su área (`src/lib/areas.ts` clasifica las casi mil materias de FIUBA por palabras clave).
+- El sorteo usa el id de la sesión como semilla, así que es reproducible.
+- El parque (`src/iso/park.js`) crece con las horas de todo el grupo desde la firma del tratado; cada uno tiene una nave que sube de nivel con sus propias horas. Tiene lugar para 4 naves.
+- Si cambiás el catálogo, corré `npm run piezas` para regenerar los nombres que usan los avisos push.

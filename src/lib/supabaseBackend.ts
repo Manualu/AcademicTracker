@@ -89,13 +89,14 @@ export class SupabaseBackend implements Backend {
   }
 
   async fetchAll(): Promise<GroupData> {
-    const [profiles, statuses, sessions, activities, exams, participants] = await Promise.all([
+    const [profiles, statuses, sessions, activities, exams, participants, recycles] = await Promise.all([
       all(this.sb, "profiles", "created_at"),
       all(this.sb, "subject_status", "updated_at"),
       all(this.sb, "study_sessions", "started_at"),
       all(this.sb, "activities", "created_at"),
       all(this.sb, "exams", "starts_at"),
       all(this.sb, "exam_participants", "joined_at"),
+      all(this.sb, "recycles", "created_at").catch(() => []), // la tabla llega con la migración 0002
     ]);
     return {
       profiles: profiles.map(toProfile),
@@ -114,6 +115,7 @@ export class SupabaseBackend implements Backend {
         location: r.location, notes: r.notes, createdAt: r.created_at,
       })),
       participants: participants.map((r) => ({ examId: r.exam_id, userId: r.user_id, joinedAt: r.joined_at })),
+      recycles: recycles.map((r) => ({ id: r.id, userId: r.user_id, piece: r.piece, createdAt: r.created_at })),
     };
   }
 
@@ -161,6 +163,9 @@ export class SupabaseBackend implements Backend {
         return;
       case "exam.leave":
         check(await sb.from("exam_participants").delete().eq("exam_id", op.examId).eq("user_id", op.userId));
+        return;
+      case "recycle.add":
+        check(await sb.from("recycles").upsert({ id: op.recycle.id, piece: op.recycle.piece }, { onConflict: "id", ignoreDuplicates: true }));
         return;
       case "status.set":
         if (op.status === null) {

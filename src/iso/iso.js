@@ -1076,4 +1076,4 @@ function drawPiece(P, piece, gx, gy, t, k = 0, x = {}) {
   }
 }
 
-export { makePainter, makeFrame, drawPiece, PIECES, PIECE_BY_ID, TIERS, RARITY, AREAS, SETS, K, shade, mix, rng };
+export { makePainter, makeFrame, drawPiece, PIECES, PIECE_BY_ID, TIERS, RARITY, AREAS, SETS, K, shade, mix, rng, hash2, hull, circ, REDUCE };

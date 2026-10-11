@@ -2,6 +2,7 @@
 -- Correr entero en el SQL Editor del proyecto (o con `supabase db push`).
 
 create extension if not exists pgcrypto;
+create extension if not exists pg_net;  -- para que la base pueda llamar a las funciones de avisos
 
 -- ---------------------------------------------------------------------------
 -- Configuración privada (código de invitación, URL de funciones, secreto)
@@ -207,11 +208,16 @@ begin
   if base is null or base like '%TU-PROYECTO%' then
     return new;
   end if;
-  perform net.http_post(
-    url     := base || '/notify',
-    headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', secret),
-    body    := jsonb_build_object('table', tg_table_name, 'record', rec)
-  );
+  -- Si el aviso falla (función sin desplegar, sin red), la carga se guarda igual
+  begin
+    perform net.http_post(
+      url     := base || '/notify',
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', secret),
+      body    := jsonb_build_object('table', tg_table_name, 'record', rec)
+    );
+  exception when others then
+    raise warning 'notify_group: no se pudo avisar (%)', sqlerrm;
+  end;
   return new;
 end;
 $$;

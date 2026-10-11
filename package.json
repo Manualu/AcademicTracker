@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "build:demo": "vite build --mode demo",
     "preview": "vite preview",
-    "planes": "node scripts/build-planes.mjs"
+    "planes": "node scripts/build-planes.mjs",
+    "piezas": "node scripts/build-piece-names.mjs"
   },
   "dependencies": {
     "@dicebear/adventurer": "^9.4.2",
