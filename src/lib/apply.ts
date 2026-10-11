@@ -30,6 +30,9 @@ export function applyOp(d: GroupData, op: Op): GroupData {
       return { ...d, participants: [...d.participants, op.participant] };
     case "exam.leave":
       return { ...d, participants: d.participants.filter((p) => !(p.examId === op.examId && p.userId === op.userId)) };
+    case "recycle.add":
+      if (d.recycles.some((r) => r.id === op.recycle.id)) return d;
+      return { ...d, recycles: [...d.recycles, op.recycle] };
     case "status.set": {
       const rest = d.statuses.filter((s) => !(s.userId === op.userId && s.planId === op.planId && s.subjectId === op.subjectId));
       if (op.status === null) return { ...d, statuses: rest };

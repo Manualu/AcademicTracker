@@ -1,16 +1,9 @@
 // Avisa al resto del grupo cuando alguien carga algo nuevo.
 // La llama la base de datos (trigger notify_group) en cada inserción.
+import { PIECE_NAMES, PIECE_RARITY } from "../_shared/pieces.ts";
 import { checkSecret, formatMinutes, json, profiles, sendTo } from "../_shared/push.ts";
 
-const PIECE_NAMES: Record<string, string> = {
-  tornillo: "un cajón de bulones",
-  engranaje: "un engranaje",
-  motor: "un motor",
-  torno: "un torno",
-  robot: "un brazo robótico",
-  horno: "un alto horno",
-  chatarra: "chatarra",
-};
+const RARITY_TAG: Record<string, string> = { rara: " (rara)", epica: " (épica)", legendaria: " (¡legendaria!)" };
 
 const EXAM_KIND: Record<string, string> = {
   parcial: "parcial",
@@ -33,10 +26,10 @@ Deno.serve(async (req) => {
   let push;
   switch (table) {
     case "study_sessions": {
-      const piece = PIECE_NAMES[record.piece] ?? "una pieza";
+      const piece = (PIECE_NAMES[record.piece] ?? "una pieza") + (RARITY_TAG[PIECE_RARITY[record.piece]] ?? "");
       push = {
         title: `${name} sumó ${formatMinutes(record.minutes)} de ${record.subject_name}`,
-        body: record.piece === "chatarra" ? "Cortó antes de tiempo y le salió chatarra." : `Fabricó ${piece} para su planta.`,
+        body: record.piece === "chatarra" ? "Cortó antes de tiempo y le salió chatarra." : `Fabricó ${piece} para su nave.`,
         url: "./#/",
         tag: `session-${record.id}`,
       };

@@ -23,7 +23,8 @@ export type SubjectStatus = {
   updatedAt: string;
 };
 
-export type PieceKey = "tornillo" | "engranaje" | "motor" | "torno" | "robot" | "horno" | "chatarra";
+/** Id de una pieza del catálogo (ver lib/catalog.ts). Las sesiones viejas pueden traer "tornillo". */
+export type PieceKey = string;
 
 export type StudySession = {
   id: string;
@@ -62,6 +63,9 @@ export type Exam = {
 
 export type ExamParticipant = { examId: string; userId: string; joinedAt: string };
 
+/** 5 chatarras recicladas en una pieza común. */
+export type Recycle = { id: string; userId: string; piece: PieceKey; createdAt: string };
+
 export type GroupData = {
   profiles: Profile[];
   statuses: SubjectStatus[];
@@ -69,10 +73,11 @@ export type GroupData = {
   activities: Activity[];
   exams: Exam[];
   participants: ExamParticipant[];
+  recycles: Recycle[];
 };
 
 export const emptyData = (): GroupData => ({
-  profiles: [], statuses: [], sessions: [], activities: [], exams: [], participants: [],
+  profiles: [], statuses: [], sessions: [], activities: [], exams: [], participants: [], recycles: [],
 });
 
 /** Cambios que hace el usuario. Se aplican al instante en pantalla y se guardan en una cola
@@ -87,6 +92,7 @@ export type Op =
   | { kind: "exam.delete"; id: string }
   | { kind: "exam.join"; participant: ExamParticipant }
   | { kind: "exam.leave"; examId: string; userId: string }
+  | { kind: "recycle.add"; recycle: Recycle }
   | { kind: "status.set"; userId: string; planId: string; subjectId: string; subjectName: string; status: SubjectState | null; at: string };
 
 export type QueuedOp = { qid: string; op: Op };

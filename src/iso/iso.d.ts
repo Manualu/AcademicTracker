@@ -18,3 +18,8 @@ export const K: Record<string, string>;
 export function shade(hex: string, f: number): string;
 export function mix(a: string, b: string, t: number): string;
 export function rng(seed: number): () => number;
+export const TIERS: ({ t: number; label: string; min: number; name: string } | null)[];
+export const RARITY: Record<string, { n: string; w: number }>;
+export const AREAS: Record<string, string>;
+export const SETS: { id: string; n: string; ids: string[]; premio: string }[];
+export function makeFrame(P: IsoPainter, gx: number, gy: number, fw?: number, fd?: number, k?: number): any;

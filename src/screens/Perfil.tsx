@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { IsoPiece } from "../components/IsoPiece";
 import { Medal } from "../components/Medal";
 import { Avatar, Icon, Sheet } from "../components/ui";
 import { AVATAR_BGS, AVATAR_STYLES, avatarUri, randomSeed, type AvatarStyleKey } from "../lib/avatar";
 import { resetDemo } from "../lib/demoBackend";
-import { CHATARRA, PIECES } from "../lib/pieces";
+import { PieceSheet } from "../components/PieceSheet";
+import { starsOf } from "../iso/park";
+import { CATALOG, inventoryOf, pieceDef, RARITY_RANK } from "../lib/catalog";
 import { findPlan } from "../lib/planes";
 import { disablePush, enablePush, pushState, type PushState } from "../lib/push";
 import { currentStreak, sessionsOf, weekMinutes } from "../lib/stats";
@@ -170,7 +172,7 @@ export default function Perfil() {
   const nav = useNavigate();
   const [editing, setEditing] = useState(false);
   const [trophy, setTrophy] = useState<Trophy | null>(null);
-  const [piece, setPiece] = useState<(typeof PIECES)[number] | null>(null);
+  const [piece, setPiece] = useState<string | null>(null);
   const p = data.profiles.find((x) => x.id === id);
   const isMe = id === userId;
   const trophies = useMemo(() => (p ? trophiesFor(data, p.id) : []), [data, p]);
@@ -178,8 +180,10 @@ export default function Perfil() {
   if (!p) return <div className="empty" style={{ paddingTop: 60 }}>No encontramos ese perfil.</div>;
 
   const ss = sessionsOf(data, p.id);
-  const counts = new Map<string, number>();
-  ss.forEach((s) => counts.set(s.piece, (counts.get(s.piece) ?? 0) + 1));
+  const counts = inventoryOf(data, p.id);
+  const owned = [...counts.entries()].filter(([k]) => k !== "chatarra").map(([k, n]) => ({ d: pieceDef(k), n }))
+    .sort((a, b) => RARITY_RANK[b.d.r] - RARITY_RANK[a.d.r] || b.d.tier - a.d.tier || b.n - a.n);
+  const scrap = counts.get("chatarra") ?? 0;
   const earned = trophies.filter((t) => t.earned).length;
   const plan = findPlan(p.planId);
   const lastSession = [...ss].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
@@ -207,22 +211,33 @@ export default function Perfil() {
         </div>
       </section>
 
-      <div className="section-title"><h2 className="h2">Planta</h2><span className="eyebrow">{ss.length} piezas fabricadas</span></div>
-      <div className="showroom">
-        {[...PIECES, CHATARRA].map((pi) => {
-          const n = counts.get(pi.key) ?? 0;
-          return (
-            <button key={pi.key} className={`${n === 0 ? "zero" : ""} ${pi.key === "chatarra" ? "wide" : ""}`} onClick={() => setPiece(pi)}>
+      <div className="section-title">
+        <h2 className="h2">Colección</h2>
+        {isMe ? <Link to="/parque?tab=cat" className="link">Catálogo</Link> : <span className="eyebrow">{owned.length} de {CATALOG.length}</span>}
+      </div>
+      <div className="card coll-head">
+        <span className="eyebrow">{owned.length} de {CATALOG.length} distintas</span>
+        <div className="cat-progress"><b style={{ width: `${(owned.length / CATALOG.length) * 100}%` }} /></div>
+        <span className="eyebrow">{scrap} chatarra</span>
+      </div>
+      {owned.length === 0 ? (
+        <div className="card empty" style={{ marginTop: 8 }}>Todavía no fabricó ninguna pieza.</div>
+      ) : (
+        <div className="showroom" style={{ marginTop: 8 }}>
+          {owned.slice(0, 9).map(({ d, n }) => (
+            <button key={d.id} className={`r-${d.r}`} onClick={() => setPiece(d.id)}>
               <span className="cnt">×{n}</span>
-              <IsoPiece piece={pi.key} size={92} height={84} locked={n === 0} />
+              {n >= 3 && <span className="stars">{"★".repeat(starsOf(n))}</span>}
+              <IsoPiece piece={d.id} size={92} height={80} />
               <span className="txt">
-                <span className="nm">{pi.name}</span>
-                <span className="tr">{pi.key === "chatarra" ? "Sesión cortada antes de tiempo" : pi.range}</span>
+                <span className="nm">{d.n}</span>
+                <span className="tr">{({ comun: "Común", rara: "Rara", epica: "Épica", legendaria: "Legendaria" } as Record<string, string>)[d.r]}</span>
               </span>
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+      {owned.length > 9 && <Link to="/parque?tab=cat" className="btn block" style={{ marginTop: 8 }}>Ver las {owned.length} piezas</Link>}
 
       <div className="section-title"><h2 className="h2">Trofeos</h2><span className="eyebrow">{earned} de {trophies.length}</span></div>
       <div className="trophy-bar"><b style={{ width: `${(earned / Math.max(1, trophies.length)) * 100}%` }} /></div>
@@ -248,18 +263,7 @@ export default function Perfil() {
           </div>
         )}
       </Sheet>
-      <Sheet open={!!piece} onClose={() => setPiece(null)} label={piece?.name ?? "Pieza"}>
-        {piece && (
-          <div className="stack" style={{ alignItems: "center", textAlign: "center", paddingBottom: 8 }}>
-            <IsoPiece piece={piece.key} size={240} height={200} locked={(counts.get(piece.key) ?? 0) === 0} />
-            <p className="eyebrow">{piece.blurb}</p>
-            <h2 className="h1" style={{ fontSize: "1.7rem" }}>{piece.name}</h2>
-            <p className="muted" style={{ margin: 0 }}>
-              {(counts.get(piece.key) ?? 0) === 0 ? "Todavía no fabricaste ninguna." : `${isMe ? "Fabricaste" : `${p.displayName} fabricó`} ${counts.get(piece.key)}.`}
-            </p>
-          </div>
-        )}
-      </Sheet>
+      <PieceSheet piece={piece} count={piece ? counts.get(pieceDef(piece).id) ?? 0 : 0} owner={isMe ? "Vos" : p.displayName} onClose={() => setPiece(null)} />
     </>
   );
 }

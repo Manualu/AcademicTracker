@@ -1,4 +1,4 @@
-import { pieceInfo } from "./pieces";
+import { pieceArticle, pieceDef, RARITY, type Rarity } from "./catalog";
 import { fmtMinutes } from "./time";
 import type { GroupData, PieceKey } from "./types";
 
@@ -20,8 +20,8 @@ export function buildFeed(d: GroupData, limit = 40): FeedItem[] {
     items.push({
       id: `s${s.id}`, kind: "session", userId: s.userId, at: s.createdAt,
       verb: `sumó ${fmtMinutes(s.minutes)} de ${s.subjectName}`,
-      detail: s.outcome === "abandoned" ? "Cortó antes y le salió chatarra" : `Fabricó ${pieceInfo(s.piece).article}${s.source === "manual" ? " (carga manual)" : ""}`,
-      piece: s.piece,
+      detail: s.outcome === "abandoned" ? "Cortó antes y le salió chatarra" : `Fabricó ${pieceArticle(s.piece)}${pieceDef(s.piece).r !== "comun" ? ` (${RARITY[pieceDef(s.piece).r as Rarity].n.toLowerCase()})` : ""}${s.source === "manual" ? ", carga manual" : ""}`,
+      piece: s.outcome === "abandoned" ? "chatarra" : s.piece,
     });
   }
   for (const a of d.activities) {
@@ -33,6 +33,9 @@ export function buildFeed(d: GroupData, limit = 40): FeedItem[] {
   for (const e of d.exams) {
     const date = new Date(e.startsAt).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
     items.push({ id: `e${e.id}`, kind: "exam", userId: e.createdBy, at: e.createdAt, verb: `agendó ${EXAM_KIND[e.kind]} de ${e.subjectName}`, detail: `El ${date}` });
+  }
+  for (const r of d.recycles) {
+    items.push({ id: `r${r.id}`, kind: "session", userId: r.userId, at: r.createdAt, verb: "recicló 5 chatarras", detail: `Le salió ${pieceArticle(r.piece)}`, piece: r.piece });
   }
   for (const s of d.statuses) {
     if (s.subjectId.startsWith("CBC") || s.status === "cursando") continue;

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { applyOp } from "./apply";
 import { DemoBackend } from "./demoBackend";
-import { pieceInfo } from "./pieces";
+import { pieceArticle } from "./catalog";
 import { SupabaseBackend, isNetworkError } from "./supabaseBackend";
 import { fmtMinutes, uuid } from "./time";
 import { emptyData, type Backend, type GroupData, type Op, type PieceKey, type QueuedOp, type RemoteEvent } from "./types";
@@ -183,7 +183,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (e.table === "study_sessions") {
         toast({
           title: `${name} sumó ${fmtMinutes(Number(e.record.minutes))} de ${e.record.subject_name}`,
-          body: `Fabricó ${pieceInfo(e.record.piece as PieceKey).article}.`,
+          body: `Fabricó ${pieceArticle(e.record.piece as PieceKey)}.`,
           userId: author,
           piece: e.record.piece as PieceKey,
         });

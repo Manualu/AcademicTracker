@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { IsoPiece, IsoPieceLive } from "../components/IsoPiece";
 import { Icon, ScreenHead, Sheet } from "../components/ui";
-import { nextPiece, pieceFor, pieceInfo, PIECES } from "../lib/pieces";
+import { areaOf, AREA_LABEL } from "../lib/areas";
+import { inventoryOf, nextTier, pieceArticle, pieceDef, pieceName, RARITY, rollPiece, TIER_FACE, tierFor, type Rarity } from "../lib/catalog";
+import { PieceSheet } from "../components/PieceSheet";
+import { Reveal } from "../components/Reveal";
+import { starsOf } from "../iso/park";
 import { useMe, useStore } from "../lib/store";
 import { dayKey, fmtClock, fmtMinutes, fmtTime, parseDay, uuid } from "../lib/time";
 import { useTimer } from "../lib/timer";
@@ -115,25 +119,29 @@ function Running() {
   let progress: number;
   let pieceProgress: number;
   let caption: string;
+  let tierText: string;
   if (countdown) {
-    piece = pieceFor(running.targetMin!);
+    const tier = tierFor(running.targetMin!);
+    piece = TIER_FACE[tier.t];
     progress = Math.min(1, elapsedMin / running.targetMin!);
     pieceProgress = progress;
     const end = new Date(running.startedAt + running.targetMin! * 60_000);
-    caption = `Fabricando ${pieceInfo(piece).article} · termina ${fmtTime(end)}`;
+    caption = `Termina ${fmtTime(end)}`;
+    tierText = `Cajón de categoría ${tier.t} · ${tier.name}`;
   } else {
-    const nxt = nextPiece(elapsedMin);
-    const cur = PIECES.filter((p) => p.min <= elapsedMin).pop();
+    const nxt = nextTier(elapsedMin);
+    const cur = tierFor(elapsedMin);
     progress = (elapsedSec % 3600) / 3600;
     if (nxt) {
-      piece = nxt.key;
-      const from = cur?.min ?? 0;
-      pieceProgress = (elapsedMin - from) / (nxt.min - from);
-      caption = `${fmtMinutes(Math.ceil(nxt.min - elapsedMin))} para ${nxt.article}`;
+      piece = TIER_FACE[nxt.t];
+      pieceProgress = (elapsedMin - cur.min) / (nxt.min - cur.min);
+      caption = `${fmtMinutes(Math.ceil(nxt.min - elapsedMin))} para subir a categoría ${nxt.t}`;
+      tierText = elapsedMin < 1 ? "Arrancando" : `Ya asegurás categoría ${cur.t} · ${cur.name}`;
     } else {
-      piece = "horno";
+      piece = TIER_FACE[6];
       pieceProgress = 1;
-      caption = "Alto horno fabricado. Seguí si querés";
+      caption = "Categoría máxima. Seguí si querés";
+      tierText = "Cajón de categoría 6 · Instalaciones";
     }
   }
 
@@ -154,6 +162,7 @@ function Running() {
         </Dial>
         <div className="clock" aria-live="off">{fmtClock(countdown ? running.targetMin! * 60 - elapsedSec : elapsedSec)}</div>
         <div className="clock-sub">{caption}</div>
+        <div className="tier-pill"><span className="rdot" style={{ background: "var(--yellow)" }} />{tierText}</div>
 
         <div className="actions">
           {countdown ? (
@@ -173,7 +182,7 @@ function Running() {
             <div className="row" style={{ gap: 14 }}>
               <IsoPiece piece="chatarra" size={72} />
               <p style={{ margin: 0 }} className="grow">
-                Se guardan los <b>{fmtMinutes(Math.floor(elapsedMin))}</b> que estudiaste, pero en vez de {pieceInfo(piece).article} te sale <b>chatarra</b>.
+                Se guardan los <b>{fmtMinutes(Math.floor(elapsedMin))}</b> que estudiaste, pero en vez de abrir el cajón te sale <b>chatarra</b>.
               </p>
             </div>
           ) : (
@@ -189,42 +198,38 @@ function Running() {
   );
 }
 
-const CONFETTI = ["#FFC21A", "#3FD09A", "#7EAEFF", "#FF7D82", "#FFFFFF"];
-
 function Result() {
   const { result, clearResult } = useTimer();
-  const { online } = useStore();
+  const { online, data, userId } = useStore();
+  const [ficha, setFicha] = useState(false);
   if (!result) return null;
-  const info = pieceInfo(result.piece);
-  const scrap = result.piece === "chatarra";
+  const scrap = result.outcome === "abandoned";
+  const piece = scrap ? "chatarra" : result.piece;
+  const p = pieceDef(piece);
+  const n = inventoryOf(data, userId!).get(p.id) ?? 1;
+  const rar = RARITY[p.r as Rarity];
   return (
-    <div className="focus" role="dialog" aria-label="Sesión terminada">
-      <div className="focus-inner">
-        {!scrap && (
-          <div className="confetti" aria-hidden>
-            {Array.from({ length: 36 }, (_, i) => (
-              <i key={i} style={{ left: `${(i * 37) % 100}%`, background: CONFETTI[i % CONFETTI.length], animationDelay: `${(i % 9) * 60}ms`, animationDuration: `${1.4 + (i % 5) * 0.25}s` }} />
-            ))}
-          </div>
+    <>
+      <Reveal piece={piece} count={n}>
+        {(shown) => shown && (
+          <>
+            {!scrap && <span className="rar big" style={{ ["--rc" as string]: rar.color }}>{rar.n}{n > 1 ? ` · ${"★".repeat(starsOf(n))}` : " · nueva"}</span>}
+            <h2 className="h1">{scrap ? "Salió chatarra" : p.n}</h2>
+            <p className="small">
+              <b style={{ color: "#fff" }}>{fmtMinutes(result.minutes)}</b> de {result.subjectName}.{" "}
+              {scrap ? "Las horas cuentan igual; la pieza no. Con 5 chatarras reciclás una pieza."
+                : n === 1 ? "Pieza nueva para tu colección." : `Ya tenías ${n - 1}.${starsOf(n) > starsOf(n - 1) ? ` ¡Subió a ${"★".repeat(starsOf(n))}!` : ""}`}
+              {!scrap && (online ? " Ya está en tu nave." : " Se sube cuando vuelva la señal.")}
+            </p>
+            <div className="actions">
+              {!scrap ? <button className="btn" onClick={() => setFicha(true)}>Ficha técnica</button> : <button className="btn" onClick={clearResult}>Otra sesión</button>}
+              <Link className="btn primary" to="/" onClick={clearResult}>Guardar en mi nave</Link>
+            </div>
+          </>
         )}
-        <div className={`result ${scrap ? "scrap" : ""}`} style={{ marginTop: "8vh" }}>
-          <p className="eyebrow" style={{ color: "var(--con-ink-3)" }}>{scrap ? "Sesión cortada" : "Sesión completa"}</p>
-          <div className="stage">
-            <div className="rays" />
-            <IsoPiece piece={result.piece} size={260} height={230} />
-          </div>
-          <h2 className="h1">{scrap ? "Salió chatarra" : `Fabricaste ${info.article}`}</h2>
-          <p className="muted" style={{ margin: "10px auto 0", maxWidth: 320, color: "var(--con-ink-2)" }}>
-            <b style={{ color: "#fff" }}>{fmtMinutes(result.minutes)}</b> de {result.subjectName}.{" "}
-            {scrap ? "Las horas cuentan igual; la pieza no." : online ? "Ya está en tu planta y el grupo lo ve." : "Ya está en tu planta. El grupo lo ve cuando vuelva la señal."}
-          </p>
-        </div>
-        <div className="actions" style={{ flexDirection: "row" }}>
-          <button className="btn grow" onClick={clearResult}>Otra sesión</button>
-          <Link className="btn primary grow" to="/" onClick={clearResult}>Ir al inicio</Link>
-        </div>
-      </div>
-    </div>
+      </Reveal>
+      <PieceSheet piece={ficha ? piece : null} count={n} owner="Vos" onClose={() => setFicha(false)} />
+    </>
   );
 }
 
@@ -242,14 +247,16 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
     // Si es hoy, la sesión termina ahora; si es otro día, se ubica a la tarde
     const start = isToday ? new Date(Date.now() - minutes * 60_000) : new Date(day.getFullYear(), day.getMonth(), day.getDate(), 17, 0);
     if (start < day) start.setTime(day.getTime());
+    const id = uuid();
+    const piece = rollPiece(minutes, subject!.name, id);
     dispatch({
       kind: "session.add",
       session: {
-        id: uuid(), userId, subjectId: subject!.id, subjectName: subject!.name.trim(), startedAt: start.toISOString(),
-        minutes, source: "manual", outcome: "completed", piece: pieceFor(minutes), createdAt: new Date().toISOString(),
+        id, userId, subjectId: subject!.id, subjectName: subject!.name.trim(), startedAt: start.toISOString(),
+        minutes, source: "manual", outcome: "completed", piece, createdAt: new Date().toISOString(),
       },
     });
-    toast({ tone: "success", title: `Cargaste ${fmtMinutes(minutes)}`, body: `Fabricaste ${pieceInfo(pieceFor(minutes)).article}.`, piece: pieceFor(minutes) });
+    toast({ tone: "success", title: `Cargaste ${fmtMinutes(minutes)}`, body: `Fabricaste ${pieceArticle(piece)}.`, piece });
     onClose();
   }
 
@@ -272,7 +279,7 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
               <output>{fmtMinutes(minutes)}</output>
               <button onClick={() => step(15)} aria-label="Más 15 minutos">+</button>
             </div>
-            <IsoPiece piece={pieceFor(minutes)} size={56} />
+            <IsoPiece piece={TIER_FACE[tierFor(minutes).t]} size={56} />
           </div>
         </div>
         <button className="btn primary big block" disabled={!valid} onClick={save}>
@@ -306,7 +313,7 @@ export default function Estudiar() {
 
   return (
     <>
-      <ScreenHead eyebrow="Sesión nueva" title="Estudiar" sub="Cada sesión fabrica una pieza para tu planta. Más largo, mejor máquina."
+      <ScreenHead eyebrow="Sesión nueva" title="Estudiar" sub="Cada sesión abre un cajón con una máquina para tu nave. Más largo, mejor categoría."
         right={<button className="btn sm" onClick={() => setManual(true)}><Icon name="edit" size={16} />A mano</button>} />
 
       <div className="step-label"><span className="n">1</span><h2 className="h2">Materia</h2></div>
@@ -316,9 +323,9 @@ export default function Estudiar() {
       <div className="durations" role="group" aria-label="Duración">
         {DURATIONS.map((d) => (
           <button key={d} className="dur" aria-pressed={duration === d} onClick={() => setDuration(d)}>
-            <IsoPiece piece={pieceFor(d)} size={70} height={62} />
+            <IsoPiece piece={TIER_FACE[tierFor(d).t]} size={70} height={62} />
             <span className="t">{fmtMinutes(d)}</span>
-            <span className="p">{pieceInfo(pieceFor(d)).name}</span>
+            <span className="p">Cat. {tierFor(d).t} · {tierFor(d).name}</span>
           </button>
         ))}
         <button className="dur" aria-pressed={duration === null} onClick={() => setDuration(null)}>
@@ -333,8 +340,8 @@ export default function Estudiar() {
         <Icon name="info" size={16} />
         <span>
           {duration
-            ? <>Si llegás al final, fabricás <b>{pieceInfo(pieceFor(duration)).article}</b>. Si cortás antes, sale chatarra (las horas cuentan igual).</>
-            : <>Sin límite: la pieza sube de categoría mientras estudiás y la guardás cuando terminás.</>}
+            ? <>Si llegás al final abrís un cajón de <b>categoría {tierFor(duration).t}</b>: puede salir común, rara, épica o legendaria{subject && areaOf(subject.name) !== "general" ? <>, y salen más las de {AREA_LABEL[areaOf(subject.name)].toLowerCase()}</> : null}. Si cortás antes, sale chatarra.</>
+            : <>Sin límite: el cajón sube de categoría mientras estudiás y lo abrís cuando terminás.</>}
         </span>
       </p>
 
@@ -352,11 +359,11 @@ export default function Estudiar() {
             <ul className="feed">
               {todays.map((s) => (
                 <li key={s.id}>
-                  <IsoPiece piece={s.piece} size={46} />
+                  <IsoPiece piece={s.outcome === "abandoned" ? "chatarra" : s.piece} size={46} />
                   <div className="grow">
                     <div className="what"><b>{s.subjectName}</b></div>
                     <div className="when">
-                      {fmtTime(s.startedAt)} · {fmtMinutes(s.minutes)} · {pieceInfo(s.piece).name}
+                      {fmtTime(s.startedAt)} · {fmtMinutes(s.minutes)} · {pieceName(s.outcome === "abandoned" ? "chatarra" : s.piece)}
                       {s.source === "manual" ? " · manual" : ""}
                     </div>
                   </div>

@@ -2,7 +2,7 @@
 // celular y calcula el tiempo transcurrido, así que sigue contando aunque bloquees la pantalla
 // o se cierre la app. La sesión terminada entra en la cola y se sube cuando vuelve la señal.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { pieceFor, pieceInfo } from "./pieces";
+import { pieceArticle, rollPiece } from "./catalog";
 import { localNotify } from "./push";
 import { useStore } from "./store";
 import { fmtMinutes, uuid } from "./time";
@@ -78,8 +78,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     persist(null);
     const min = Math.min(MAX_MIN, Math.floor(minutes));
     if (min >= 1 && userId) {
+      const id = uuid();
       const session: StudySession = {
-        id: uuid(),
+        id,
         userId,
         subjectId: t.subjectId,
         subjectName: t.subjectName,
@@ -87,7 +88,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         minutes: min,
         source: "timer",
         outcome,
-        piece: outcome === "abandoned" ? "chatarra" : pieceFor(min),
+        piece: outcome === "abandoned" ? "chatarra" : rollPiece(min, t.subjectName, id),
         createdAt: new Date().toISOString(),
       };
       dispatch({ kind: "session.add", session });
@@ -96,7 +97,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         if (document.visibilityState === "visible") beep();
         navigator.vibrate?.([120, 80, 120]);
         if (document.visibilityState !== "visible") {
-          void localNotify("Sesión terminada", `${fmtMinutes(min)} de ${t.subjectName}. Fabricaste ${pieceInfo(session.piece).article}.`);
+          void localNotify("Sesión terminada", `${fmtMinutes(min)} de ${t.subjectName}. Fabricaste ${pieceArticle(session.piece)}.`);
         }
       }
     }

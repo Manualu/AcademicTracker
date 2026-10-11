@@ -1,17 +1,7 @@
 import { useEffect, useRef } from "react";
-import { drawPiece, makePainter, PIECE_BY_ID, type IsoPieceDef } from "../iso/iso";
+import { drawPiece, makePainter, type IsoPieceDef } from "../iso/iso";
+import { pieceDef } from "../lib/catalog";
 import type { PieceKey } from "../lib/types";
-
-/** Pieza de la app → modelo 3D del catálogo isométrico. */
-export const ISO_ID: Record<PieceKey, string> = {
-  tornillo: "bulones",
-  engranaje: "engranaje",
-  motor: "motor",
-  torno: "torno",
-  robot: "robot",
-  horno: "horno",
-  chatarra: "chatarra",
-};
 
 const REDUCE = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const cache = new Map<string, string>();
@@ -50,12 +40,12 @@ function paint(ctx: CanvasRenderingContext2D, def: IsoPieceDef, g: Geo, t: numbe
 }
 
 /** Imagen estática (data URL) de una pieza; queda cacheada. */
-export function isoImage(piece: PieceKey | string, w: number, h = w, opts: { plate?: boolean; sil?: string } = {}): string {
-  const id = (ISO_ID as Record<string, string>)[piece] ?? piece;
+export function isoImage(piece: PieceKey, w: number, h = w, opts: { plate?: boolean; sil?: string } = {}): string {
+  const def = pieceDef(piece);
+  const id = def.id;
   const key = `${id}:${w}x${h}:${opts.plate ? 1 : 0}:${opts.sil ?? ""}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const def = PIECE_BY_ID[id];
   const dpr = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
   const c = document.createElement("canvas");
   c.width = Math.round(w * dpr);
@@ -104,7 +94,7 @@ export function IsoPieceLive({ piece, size = 160, height, progress, planoColor =
     c.width = Math.round(size * dpr);
     c.height = Math.round(h * dpr);
     const ctx = c.getContext("2d")!;
-    const def = PIECE_BY_ID[ISO_ID[piece]];
+    const def = pieceDef(piece);
     const g = geometry(def, size, h, 0.0);
     let raf = 0;
     let last = 0;

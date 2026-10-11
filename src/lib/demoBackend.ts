@@ -1,13 +1,15 @@
 // Backend de prueba: guarda todo en el navegador y trae un grupo inventado,
 // para ver la app sin configurar Supabase. Se activa si faltan las variables de entorno.
 import { applyOp } from "./apply";
-import { pieceFor } from "./pieces";
+import { rollPiece } from "./catalog";
 import { addDays, dayKey, uuid } from "./time";
 import type { Backend, GroupData, Op, Profile, RemoteEvent, StudySession } from "./types";
 
-const DB_KEY = "remontada.demo.db";
+const DB_KEY = "remontada.demo.db.v2";
 const AUTH_KEY = "remontada.demo.user";
 export const DEMO_ME = "demo-manu";
+/** Días de historial inventado: alcanza para ver el parque con varias etapas desbloqueadas */
+const DEMO_DAYS = 62;
 
 function rng(seed: number) {
   return () => {
@@ -24,7 +26,7 @@ function seed(): GroupData {
     ["demo-benja", "Benja", { style: "adventurer", seed: "benja-r", bg: "B7E4C7" }],
     ["demo-vicky", "Vicky", { style: "lorelei", seed: "vicky-fiuba", bg: "F4B6C2" }],
   ];
-  const created = addDays(now, -24).toISOString();
+  const created = addDays(now, -DEMO_DAYS - 2).toISOString();
   const profiles: Profile[] = people.map(([id, name, avatar]) => ({
     id, displayName: name, avatar, planId: "industrial-2020",
     notifyFeed: true, notifyWakeup: true, notifyExams: true, notifyWeekly: true, createdAt: created,
@@ -33,24 +35,30 @@ function seed(): GroupData {
   const subjects = [
     ["PROBA", "Probabilidad"], ["ECO", "Economía"], ["TDE", "Transformación de la Energía"], ["MAI", "Materiales y Aplicaciones I"],
   ];
+  // Lo que cursaban el cuatrimestre pasado (para que el historial largo tenga variedad)
+  const before = [
+    ["AMII", "Análisis Matemático II"], ["QB", "Química Básica"], ["ERM", "Estática y Resistencia de Materiales"], ["IND", "Industrias Digitales"],
+  ];
   const rand = rng(42);
   const sessions: StudySession[] = [];
   const intensity: Record<string, number> = { [DEMO_ME]: 0.8, "demo-berni": 1, "demo-benja": 0.6, "demo-vicky": 0.9 };
   for (const [id] of people) {
-    for (let d = 21; d >= 0; d--) {
+    for (let d = DEMO_DAYS; d >= 0; d--) {
       const day = addDays(now, -d);
       if (d === 0 && now.getHours() < 11) continue;
       const count = rand() < 0.15 ? 0 : Math.round(rand() * 2.4 * intensity[id]) + (rand() < intensity[id] ? 1 : 0);
       for (let i = 0; i < count; i++) {
-        const [sid, sname] = subjects[Math.floor(rand() * subjects.length)];
+        const pool = d > 30 ? before : subjects;
+        const [sid, sname] = pool[Math.floor(rand() * pool.length)];
         const minutes = [25, 25, 50, 50, 50, 75, 90, 120][Math.floor(rand() * 8)];
         const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9 + i * 3 + Math.floor(rand() * 2), Math.floor(rand() * 60));
         if (start > now) continue;
         const abandoned = rand() < 0.08;
+        const sidv = uuid();
         sessions.push({
-          id: uuid(), userId: id, subjectId: sid, subjectName: sname, startedAt: start.toISOString(),
+          id: sidv, userId: id, subjectId: sid, subjectName: sname, startedAt: start.toISOString(),
           minutes: abandoned ? Math.round(minutes / 3) : minutes, source: rand() < 0.8 ? "timer" : "manual",
-          outcome: abandoned ? "abandoned" : "completed", piece: abandoned ? "chatarra" : pieceFor(minutes),
+          outcome: abandoned ? "abandoned" : "completed", piece: abandoned ? "chatarra" : rollPiece(minutes, sname, sidv),
           createdAt: new Date(start.getTime() + minutes * 60_000).toISOString(),
         });
       }
@@ -97,13 +105,13 @@ function seed(): GroupData {
     st(id, "ODE", "Organización y Dirección Empresaria", "aprobada"),
     ...subjects.map(([sid, sname]) => st(id, sid, sname, "cursando")),
   ]);
-  return { profiles, statuses, sessions, activities, exams, participants };
+  return { profiles, statuses, sessions, activities, exams, participants, recycles: [] };
 }
 
 function load(): GroupData {
   try {
     const raw = localStorage.getItem(DB_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { recycles: [], ...JSON.parse(raw) };
   } catch { /* sin almacenamiento: se usa el grupo inventado en memoria */ }
   const d = seed();
   save(d);
@@ -165,10 +173,11 @@ export class DemoBackend implements Backend {
 
   private simulateFriend() {
     const minutes = 50;
+    const id = uuid();
     const s: StudySession = {
-      id: uuid(), userId: "demo-berni", subjectId: "PROBA", subjectName: "Probabilidad",
+      id, userId: "demo-berni", subjectId: "PROBA", subjectName: "Probabilidad",
       startedAt: new Date(Date.now() - minutes * 60_000).toISOString(), minutes, source: "timer",
-      outcome: "completed", piece: pieceFor(minutes), createdAt: new Date().toISOString(),
+      outcome: "completed", piece: rollPiece(minutes, "Probabilidad", id), createdAt: new Date().toISOString(),
     };
     save(applyOp(this.db(), { kind: "session.add", session: s }));
     this.listeners.forEach((cb) => cb({
