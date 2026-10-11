@@ -108,7 +108,7 @@ function Settings({ me }: { me: Profile }) {
         {([
           ["notifyFeed", "users", "Cuando alguien estudia, entrena o agenda un examen"],
           ["notifyWakeup", "sun", "8:30, recordatorio de la foto de las 9"],
-          ["notifyExams", "calendar", "Una semana y un día antes de tus exámenes"],
+          ["notifyExams", "calendar", "Una semana y un día antes de tus exámenes, y el día de tus sesiones grupales"],
           ["notifyWeekly", "rank", "Domingo si te falta algo y lunes con el resumen"],
         ] as const).map(([k, ico, label]) => (
           <label key={k} className="toggle">

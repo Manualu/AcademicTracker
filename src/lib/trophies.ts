@@ -102,7 +102,7 @@ const DEFS: Def[] = [
     description: "Cumplí las 3 actividades físicas en una semana con examen.",
     check: (c) => {
       const mine = new Set(c.data.participants.filter((p) => p.userId === c.userId).map((p) => p.examId));
-      const examWeeks = c.data.exams.filter((e) => mine.has(e.id)).map((e) => dayKey(startOfWeek(new Date(e.startsAt))));
+      const examWeeks = c.data.exams.filter((e) => e.kind !== "grupal" && mine.has(e.id)).map((e) => dayKey(startOfWeek(new Date(e.startsAt))));
       return examWeeks.some((k) => weekActivities(activitiesOf(c.data, c.userId), new Date(`${k}T00:00`)) >= WEEK_GOAL_ACTIVITY);
     },
   },
@@ -110,7 +110,7 @@ const DEFS: Def[] = [
     id: "ensamble", name: "Ensamble", glyph: "∪",
     description: "Rendí un examen junto con alguien más del grupo.",
     check: (c) => c.data.exams.some((e) => {
-      if (new Date(e.startsAt) > new Date()) return false;
+      if (e.kind === "grupal" || new Date(e.startsAt) > new Date()) return false;
       const ps = c.data.participants.filter((p) => p.examId === e.id);
       return ps.length >= 2 && ps.some((p) => p.userId === c.userId);
     }),

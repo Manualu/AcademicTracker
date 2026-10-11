@@ -32,6 +32,11 @@ export function buildFeed(d: GroupData, limit = 40): FeedItem[] {
   }
   for (const e of d.exams) {
     const date = new Date(e.startsAt).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+    if (e.kind === "grupal") {
+      const time = new Date(e.startsAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+      items.push({ id: `e${e.id}`, kind: "exam", userId: e.createdBy, at: e.createdAt, verb: `armó una sesión de estudio grupal de ${e.subjectName}`, detail: `El ${date} a las ${time}${e.location ? `, ${e.location}` : ""}` });
+      continue;
+    }
     items.push({ id: `e${e.id}`, kind: "exam", userId: e.createdBy, at: e.createdAt, verb: `agendó ${EXAM_KIND[e.kind]} de ${e.subjectName}`, detail: `El ${date}` });
   }
   for (const r of d.recycles) {
