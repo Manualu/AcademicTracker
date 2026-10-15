@@ -9,7 +9,10 @@ import { Reveal } from "../components/Reveal";
 import { starsOf } from "../iso/park";
 import { useMe, useStore } from "../lib/store";
 import { dayKey, fmtClock, fmtMinutes, fmtTime, parseDay, uuid } from "../lib/time";
-import { useTimer } from "../lib/timer";
+import { POMO_PRESETS, useTimer } from "../lib/timer";
+import { AmbientSheet } from "../components/AmbientSheet";
+import { runShortcut, usePrefs } from "../lib/prefs";
+import { AMBIENTS, playAmbient, useAmbient } from "../lib/sound";
 import type { PieceKey } from "../lib/types";
 
 const DURATIONS = [25, 50, 60, 90, 120];
@@ -71,7 +74,7 @@ function SubjectPicker({ value, onChange }: { value: Subj | null; onChange: (s: 
   );
 }
 
-function Dial({ progress, children, ticks = 60 }: { progress: number; children: ReactNode; ticks?: number }) {
+function Dial({ progress, children, ticks = 60, color = "var(--yellow)" }: { progress: number; children: ReactNode; ticks?: number; color?: string }) {
   const r = 44;
   const c = 2 * Math.PI * r;
   const a = progress * Math.PI * 2;
@@ -85,13 +88,13 @@ function Dial({ progress, children, ticks = 60 }: { progress: number; children: 
           return (
             <line key={i} x1={50 + (long ? 47.2 : 48.2) * Math.cos(t)} y1={50 + (long ? 47.2 : 48.2) * Math.sin(t)}
               x2={50 + 49.8 * Math.cos(t)} y2={50 + 49.8 * Math.sin(t)}
-              stroke={done ? "var(--yellow)" : "rgba(220,232,255,.28)"} strokeWidth={long ? 0.7 : 0.4} />
+              stroke={done ? color : "rgba(220,232,255,.28)"} strokeWidth={long ? 0.7 : 0.4} />
           );
         })}
         <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(220,232,255,.1)" strokeWidth="2.2" />
-        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--yellow)" strokeWidth="2.2" strokeLinecap="round"
-          strokeDasharray={`${c * progress} ${c}`} style={{ filter: "drop-shadow(0 0 2px rgba(255,194,26,.8))", transition: "stroke-dasharray 1s linear" }} />
-        <circle cx={50 + r * Math.cos(a)} cy={50 + r * Math.sin(a)} r="2.4" fill="#fff" stroke="var(--yellow)" strokeWidth="1.2" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round"
+          strokeDasharray={`${c * progress} ${c}`} style={{ filter: `drop-shadow(0 0 2px ${color === "var(--yellow)" ? "rgba(255,194,26,.8)" : "rgba(126,184,255,.8)"})`, transition: "stroke-dasharray 1s linear" }} />
+        <circle cx={50 + r * Math.cos(a)} cy={50 + r * Math.sin(a)} r="2.4" fill="#fff" stroke={color} strokeWidth="1.2" />
         <circle cx="50" cy="50" r="38" fill="rgba(6,14,34,.35)" stroke="rgba(220,232,255,.08)" strokeWidth="0.4" />
       </svg>
       <div className="center">{children}</div>
@@ -108,9 +111,12 @@ function useFocusMode(on: boolean) {
 }
 
 function Running() {
-  const { running, elapsedSec, finish, abandon, discard } = useTimer();
+  const { running, elapsedSec, finish, abandon, discard, paused, pause, resume, pauseLeftSec } = useTimer();
   const nav = useNavigate();
   const [confirm, setConfirm] = useState(false);
+  const [soundOpen, setSoundOpen] = useState(false);
+  const [prefs] = usePrefs();
+  const amb = useAmbient();
   if (!running) return null;
   const elapsedMin = elapsedSec / 60;
   const countdown = running.targetMin !== null;
@@ -125,7 +131,7 @@ function Running() {
     piece = TIER_FACE[tier.t];
     progress = Math.min(1, elapsedMin / running.targetMin!);
     pieceProgress = progress;
-    const end = new Date(running.startedAt + running.targetMin! * 60_000);
+    const end = new Date(Date.now() + (running.targetMin! * 60 - elapsedSec) * 1000);
     caption = `Termina ${fmtTime(end)}`;
     tierText = `Cajón de categoría ${tier.t} · ${tier.name}`;
   } else {
@@ -146,43 +152,58 @@ function Running() {
   }
 
   return (
-    <div className="focus" role="region" aria-label="Sesión de estudio">
+    <div className={`focus ${paused ? "is-paused" : ""}`} role="region" aria-label="Sesión de estudio">
       <div className="focus-inner">
         <div className="top">
           <button className="icon-btn" onClick={() => nav("/")} aria-label="Minimizar"><Icon name="down" /></button>
           <span className="chip-dark"><Icon name="plane" size={13} /> Funciona en modo avión</span>
-          <span style={{ width: 40 }} />
+          <button className={`icon-btn ${prefs.ambient ? "sound-on" : ""}`} onClick={() => setSoundOpen(true)} aria-label="Sonido de fondo">
+            <Icon name={prefs.ambient ? "sound" : "mute"} />
+          </button>
         </div>
         <div className="subject">
-          <p className="eyebrow" style={{ color: "var(--con-ink-3)" }}>{countdown ? `Sesión de ${fmtMinutes(running.targetMin!)}` : "Modo libre"}</p>
+          <p className="eyebrow" style={{ color: "var(--con-ink-3)" }}>
+            {running.pomo ? `Pomodoro ${running.pomo.work}/${running.pomo.rest} · bloque ${running.pomo.done + 1}` : countdown ? `Sesión de ${fmtMinutes(running.targetMin!)}` : "Modo libre"}
+          </p>
           <h1 className="h1" style={{ color: "#fff", marginTop: 6 }}>{running.subjectName}</h1>
         </div>
         <Dial progress={progress}>
           <IsoPieceLive piece={piece} size={250} height={230} progress={pieceProgress} />
         </Dial>
         <div className="clock" aria-live="off">{fmtClock(countdown ? running.targetMin! * 60 - elapsedSec : elapsedSec)}</div>
-        <div className="clock-sub">{caption}</div>
+        <div className="clock-sub">{paused ? <>En pausa · se cierra sola en <b>{fmtClock(pauseLeftSec)}</b></> : caption}</div>
         <div className="tier-pill"><span className="rdot" style={{ background: "var(--yellow)" }} />{tierText}</div>
+        {prefs.ambient && amb.blocked && !paused && (
+          <button className="chip-dark sound-blocked" onClick={() => void playAmbient(prefs.ambient)}>
+            <Icon name="sound" size={13} /> Tocá para activar {AMBIENTS.find((a) => a.k === prefs.ambient)?.n.toLowerCase()}
+          </button>
+        )}
 
         <div className="actions">
-          {countdown ? (
-            <button className="btn block" onClick={() => setConfirm(true)}><Icon name="stop" size={16} />Cortar antes de tiempo</button>
-          ) : elapsedMin < 1 ? (
-            <button className="btn block" onClick={discard}>Cancelar</button>
+          {paused ? (
+            <button className="btn primary big block" onClick={resume}><Icon name="play" size={20} />Seguir</button>
           ) : (
-            <button className="btn primary big block" onClick={finish}><Icon name="check" size={20} stroke={2.6} />Terminar y guardar</button>
+            <button className="btn block pause-btn" onClick={pause}><Icon name="pause" size={18} />Pausa (hasta 5 min)</button>
           )}
-          <p className="note">Podés bloquear el celular: el tiempo sigue contando.</p>
+          {countdown ? (
+            <button className="btn block ghost-dark" onClick={() => setConfirm(true)}><Icon name="stop" size={16} />Cortar antes de tiempo</button>
+          ) : elapsedMin < 1 ? (
+            <button className="btn block ghost-dark" onClick={() => { discard(); runShortcut("end"); }}>Cancelar</button>
+          ) : (
+            <button className={`btn block ${paused ? "ghost-dark" : "primary big"}`} onClick={finish}><Icon name="check" size={20} stroke={2.6} />Terminar y guardar</button>
+          )}
+          <p className="note">{paused ? "La pausa no suma tiempo. Si pasan 5 minutos, se guarda lo que llevás." : "Podés bloquear el celular: el tiempo sigue contando."}</p>
         </div>
       </div>
 
-      <Sheet open={confirm} onClose={() => setConfirm(false)} label="Cortar la sesión" title="¿Cortás la sesión?" eyebrow="Cuenta regresiva">
+      <AmbientSheet open={soundOpen} onClose={() => setSoundOpen(false)} />
+      <Sheet open={confirm} onClose={() => setConfirm(false)} label="Cortar la sesión" title="¿Cortás la sesión?" eyebrow={running.pomo ? "Pomodoro" : "Cuenta regresiva"}>
         <div className="stack">
           {elapsedMin >= 1 ? (
             <div className="row" style={{ gap: 14 }}>
               <IsoPiece piece="chatarra" size={72} />
               <p style={{ margin: 0 }} className="grow">
-                Se guardan los <b>{fmtMinutes(Math.floor(elapsedMin))}</b> que estudiaste, pero en vez de abrir el cajón te sale <b>chatarra</b>.
+                Se guardan los <b>{fmtMinutes(Math.floor(elapsedMin))}</b> que estudiaste, pero en vez de abrir el cajón te sale <b>chatarra</b>.{running.pomo ? " El pomodoro termina acá." : ""}
               </p>
             </div>
           ) : (
@@ -190,7 +211,7 @@ function Running() {
           )}
           <div className="row" style={{ marginTop: 6 }}>
             <button className="btn primary grow" onClick={() => setConfirm(false)}>Seguir estudiando</button>
-            <button className="btn danger grow" onClick={() => { setConfirm(false); if (elapsedMin >= 1) abandon(); else discard(); }}>Cortar</button>
+            <button className="btn danger grow" onClick={() => { setConfirm(false); if (elapsedMin >= 1) abandon(); else { discard(); runShortcut("end"); } }}>Cortar</button>
           </div>
         </div>
       </Sheet>
@@ -198,10 +219,59 @@ function Running() {
   );
 }
 
+function BreakView() {
+  const { pomoBreak, breakLeftSec, nextBlock, endPomodoro } = useTimer();
+  const nav = useNavigate();
+  const [soundOpen, setSoundOpen] = useState(false);
+  const [prefs] = usePrefs();
+  const { data, userId } = useStore();
+  if (!pomoBreak) return null;
+  const total = (pomoBreak.until - pomoBreak.startedAt) / 1000;
+  const over = breakLeftSec <= 0;
+  const n = pomoBreak.pomo.done;
+  const today = data.sessions.filter((s) => s.userId === userId && dayKey(s.startedAt) === dayKey(new Date()) && s.subjectName === pomoBreak.subjectName).reduce((a, s) => a + s.minutes, 0);
+  return (
+    <div className="focus is-break" role="region" aria-label="Descanso del pomodoro">
+      <div className="focus-inner">
+        <div className="top">
+          <button className="icon-btn" onClick={() => nav("/")} aria-label="Minimizar"><Icon name="down" /></button>
+          <span className="chip-dark"><Icon name="tomato" size={13} /> Pomodoro {pomoBreak.pomo.work}/{pomoBreak.pomo.rest}</span>
+          <button className={`icon-btn ${prefs.ambient ? "sound-on" : ""}`} onClick={() => setSoundOpen(true)} aria-label="Sonido de fondo">
+            <Icon name={prefs.ambient ? "sound" : "mute"} />
+          </button>
+        </div>
+        <div className="subject">
+          <p className="eyebrow" style={{ color: "var(--con-ink-3)" }}>{over ? "Terminó el descanso" : pomoBreak.long ? "Descanso largo" : "Descanso"}</p>
+          <h1 className="h1" style={{ color: "#fff", marginTop: 6 }}>{pomoBreak.subjectName}</h1>
+        </div>
+        <Dial progress={over ? 1 : 1 - breakLeftSec / total} color="#7eb8ff">
+          <div className="break-face"><Icon name="coffee" size={84} stroke={1.3} /></div>
+        </Dial>
+        <div className="clock" aria-live="off">{fmtClock(breakLeftSec)}</div>
+        <div className="clock-sub">{over ? <>A estudiar: bloque {n + 1}</> : <>Bloque {n} listo · levantate, tomá agua, estirá</>}</div>
+        <div className="pomo-dots" aria-label={`${n} bloques hechos`}>
+          {Array.from({ length: Math.max(pomoBreak.pomo.every, n) }, (_, i) => <i key={i} className={i < n ? "on" : ""} />)}
+          <span>{fmtMinutes(today)} hoy de esta materia</span>
+        </div>
+        <div className="actions">
+          <button className={`btn block ${over ? "primary big" : "pause-btn"}`} onClick={nextBlock}><Icon name="play" size={18} />{over ? `Empezar bloque ${n + 1}` : `Saltar descanso y empezar bloque ${n + 1}`}</button>
+          <button className="btn block ghost-dark" onClick={() => { endPomodoro(); runShortcut("end"); nav("/"); }}>Terminar el pomodoro</button>
+          <p className="note">El descanso no suma horas. Cuando termine, suena y te avisa.</p>
+        </div>
+      </div>
+      <AmbientSheet open={soundOpen} onClose={() => setSoundOpen(false)} />
+    </div>
+  );
+}
+
 function Result() {
-  const { result, clearResult } = useTimer();
+  const { result, clearResult, pomoBreak, endPomodoro, autoClosed } = useTimer();
   const { online, data, userId } = useStore();
   const [ficha, setFicha] = useState(false);
+  const nav = useNavigate();
+  // Pomodoro: si quedó un descanso en marcha, de acá se pasa al descanso
+  const inPomo = !!pomoBreak && result?.outcome === "completed";
+  const leave = () => { clearResult(); runShortcut("end"); };
   if (!result) return null;
   const scrap = result.outcome === "abandoned";
   const piece = scrap ? "chatarra" : result.piece;
@@ -220,11 +290,22 @@ function Result() {
               {scrap ? "Las horas cuentan igual; la pieza no. Con 5 chatarras reciclás una pieza."
                 : n === 1 ? "Pieza nueva para tu colección." : `Ya tenías ${n - 1}.${starsOf(n) > starsOf(n - 1) ? ` ¡Subió a ${"★".repeat(starsOf(n))}!` : ""}`}
               {!scrap && (online ? " Ya está en tu nave." : " Se sube cuando vuelva la señal.")}
+              {autoClosed && " La pausa pasó de 5 minutos y la sesión se cerró sola."}
             </p>
-            <div className="actions">
-              {!scrap ? <button className="btn" onClick={() => setFicha(true)}>Ficha técnica</button> : <button className="btn" onClick={clearResult}>Otra sesión</button>}
-              <Link className="btn primary" to="/" onClick={clearResult}>Guardar en mi nave</Link>
-            </div>
+            {inPomo ? (
+              <>
+                <div className="actions">
+                  <button className="btn" onClick={() => setFicha(true)}>Ficha técnica</button>
+                  <button className="btn primary" onClick={clearResult}><Icon name="coffee" size={18} />Descanso de {pomoBreak!.long ? pomoBreak!.pomo.longRest : pomoBreak!.pomo.rest} min</button>
+                </div>
+                <button className="btn sm ghost-dark" onClick={() => { endPomodoro(); leave(); nav("/"); }}>Terminar el pomodoro acá</button>
+              </>
+            ) : (
+              <div className="actions">
+                {!scrap ? <button className="btn" onClick={() => setFicha(true)}>Ficha técnica</button> : <button className="btn" onClick={leave}>Otra sesión</button>}
+                <Link className="btn primary" to="/" onClick={leave}>Guardar en mi nave</Link>
+              </div>
+            )}
           </>
         )}
       </Reveal>
@@ -291,13 +372,16 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
 }
 
 export default function Estudiar() {
-  const { running, result, start } = useTimer();
+  const { running, result, start, pomoBreak } = useTimer();
   const { data, userId, dispatch } = useStore();
   const subjects = useMySubjects();
   const [subject, setSubject] = useState<Subj | null>(null);
-  const [duration, setDuration] = useState<number | null>(50);
+  const [duration, setDuration] = useState<number | null | "pomo">(50);
+  const [preset, setPreset] = useState(0);
   const [manual, setManual] = useState(false);
-  useFocusMode(!!running || !!result);
+  const [soundOpen, setSoundOpen] = useState(false);
+  const [prefs] = usePrefs();
+  useFocusMode(!!running || !!result || !!pomoBreak);
 
   // Arranca con la última materia que estudiaste elegida
   useEffect(() => { if (!subject && subjects.length) setSubject(subjects[0]); }, [subjects]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -308,6 +392,7 @@ export default function Estudiar() {
 
   if (running) return <Running />;
   if (result) return <Result />;
+  if (pomoBreak) return <BreakView />;
 
   const ready = !!subject?.name.trim();
 
@@ -335,20 +420,59 @@ export default function Estudiar() {
           <span className="t">Libre</span>
           <span className="p">Mejora con el tiempo</span>
         </button>
+        <button className="dur pomo" aria-pressed={duration === "pomo"} onClick={() => setDuration("pomo")}>
+          <div style={{ width: 70, height: 62, display: "grid", placeItems: "center" }}>
+            <Icon name="tomato" size={36} stroke={1.6} />
+          </div>
+          <span className="t">Pomodoro</span>
+          <span className="p">Bloques con descanso</span>
+        </button>
       </div>
+      {duration === "pomo" && (
+        <div className="pomo-presets" role="radiogroup" aria-label="Formato del pomodoro">
+          {POMO_PRESETS.map((p, i) => (
+            <button key={p.label} role="radio" aria-checked={preset === i} onClick={() => setPreset(i)}>
+              <IsoPiece piece={TIER_FACE[tierFor(p.work).t]} size={54} height={48} />
+              <span className="grow">
+                <b>{p.work} min de estudio · {p.rest} de descanso</b>
+                <span>Cada bloque abre un cajón de categoría {tierFor(p.work).t} · {tierFor(p.work).name}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
       <p className="reward-note">
         <Icon name="info" size={16} />
         <span>
-          {duration
+          {duration === "pomo"
+            ? <>Cada bloque de {POMO_PRESETS[preset].work} min que terminás abre un cajón{POMO_PRESETS[preset].work >= 50 ? <>: con 50 min salen piezas de una categoría más alta</> : null}. Descanso de {POMO_PRESETS[preset].rest} min y uno largo de {POMO_PRESETS[preset].longRest} cada 4 bloques; los descansos no suman horas. Si cortás un bloque, sale chatarra.</>
+            : duration
             ? <>Si llegás al final abrís un cajón de <b>categoría {tierFor(duration).t}</b>: puede salir común, rara, épica o legendaria{subject && areaOf(subject.name) !== "general" ? <>, y salen más las de {AREA_LABEL[areaOf(subject.name)].toLowerCase()}</> : null}. Si cortás antes, sale chatarra.</>
             : <>Sin límite: el cajón sube de categoría mientras estudiás y lo abrís cuando terminás.</>}
         </span>
       </p>
 
+      <div className="step-label"><span className="n">3</span><h2 className="h2">Sonido</h2><span className="eyebrow" style={{ marginLeft: "auto" }}>Opcional</span></div>
+      <button className="sound-pick" onClick={() => setSoundOpen(true)}>
+        <Icon name={prefs.ambient ? "sound" : "mute"} size={20} />
+        <span className="grow"><b>{prefs.ambient ? AMBIENTS.find((a) => a.k === prefs.ambient)?.n : "Silencio"}</b>
+          <span>{prefs.ambient ? "Suena mientras estudiás, también con el celu bloqueado" : "Lluvia, olas, fábrica lejana o ruido para concentrarte"}</span></span>
+        <Icon name="next" size={18} />
+      </button>
+      <AmbientSheet open={soundOpen} onClose={() => setSoundOpen(false)} />
+
       <div className="start-bar">
         <button className="btn primary big block" disabled={!ready}
-          onClick={() => subject && start({ subjectId: subject.id, subjectName: subject.name.trim(), targetMin: duration })}>
-          {ready ? <><Icon name="play" size={20} />Empezar {duration ? fmtMinutes(duration) : "en modo libre"}</> : "Elegí una materia"}
+          onClick={() => {
+            if (!subject) return;
+            const name = subject.name.trim();
+            if (duration === "pomo") {
+              const p = POMO_PRESETS[preset];
+              start({ subjectId: subject.id, subjectName: name, targetMin: p.work, pomo: { work: p.work, rest: p.rest, longRest: p.longRest, every: 4, done: 0 } });
+            } else start({ subjectId: subject.id, subjectName: name, targetMin: duration });
+            runShortcut("start");
+          }}>
+          {ready ? <><Icon name="play" size={20} />Empezar {duration === "pomo" ? `pomodoro ${POMO_PRESETS[preset].label}` : duration ? fmtMinutes(duration) : "en modo libre"}</> : "Elegí una materia"}
         </button>
       </div>
 

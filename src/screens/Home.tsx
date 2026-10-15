@@ -14,6 +14,8 @@ import { activitiesOf, sessionsOf, weekActivities, weekMinutes, weekSummary } fr
 import { useMe, useStore } from "../lib/store";
 import { addDays, capitalize, dayKey, daysUntil, fmtClock, fmtHours, fmtMinutes, fmtTime, startOfWeek } from "../lib/time";
 import { useTimer } from "../lib/timer";
+import { usePrefs } from "../lib/prefs";
+import { startParkMusic, stopParkMusic } from "../lib/sound";
 import { groupEnd, groupLive, isExam, isGroup, placeLabel } from "../lib/agenda";
 
 const DOW = ["L", "M", "M", "J", "V", "S", "D"];
@@ -94,7 +96,14 @@ function useDeliveries(sessions: { id: string; userId: string; piece: string; ou
 export default function Home() {
   const { data, userId } = useStore();
   const me = useMe();
-  const { running, elapsedSec } = useTimer();
+  const { running, elapsedSec, paused, pomoBreak, breakLeftSec } = useTimer();
+  const [prefs, setPrefs] = usePrefs();
+  // Música del parque: suena solo en Inicio y con la sesión parada
+  useEffect(() => {
+    if (prefs.parkMusic && !running) startParkMusic();
+    else stopParkMusic();
+    return () => stopParkMusic();
+  }, [prefs.parkMusic, running]);
   const [actOpen, setActOpen] = useState(false);
   const [feedLen, setFeedLen] = useState(10);
   const week = useMemo(() => weekSummary(data, userId!), [data, userId]);
@@ -174,7 +183,7 @@ export default function Home() {
   return (
     <>
       <section className="home-park" aria-label="Parque del grupo" ref={parkRef}>
-        <ParkCanvas sceneRef={scene} onSelect={setSel} label="Parque industrial del grupo. Arrastrá, hacé zoom y tocá a cada uno." />
+        <ParkCanvas frame={0.7} sceneRef={scene} onSelect={setSel} label="Parque industrial del grupo. Arrastrá, hacé zoom y tocá a cada uno." />
         <div className="hp-top">
           <Link to={`/perfil/${userId}`} aria-label="Mi perfil" className="hp-me">
             <Avatar profile={me} size={40} />
@@ -187,6 +196,10 @@ export default function Home() {
             <button className="icon-btn boxed" onClick={() => userId && focusOn(userId, 1.7)} aria-label="Ir a mi nave"><Icon name="pin" size={19} /></button>
             <button className="icon-btn boxed" onClick={() => scene.current?.recenter()} aria-label="Ver todo el parque"><Icon name="fit" size={19} /></button>
             <Link to="/parque" className="icon-btn boxed" aria-label="Mi nave, catálogo y etapas"><Icon name="factory" size={19} /></Link>
+            <button className={`icon-btn boxed ${prefs.parkMusic ? "on" : ""}`} onClick={() => setPrefs({ parkMusic: !prefs.parkMusic })}
+              aria-label={prefs.parkMusic ? "Apagar la música del parque" : "Prender la música del parque"} aria-pressed={prefs.parkMusic}>
+              <Icon name={prefs.parkMusic ? "music" : "mute"} size={19} />
+            </button>
           </div>
         </div>
         <div className="hp-strip">
@@ -246,13 +259,23 @@ export default function Home() {
       </section>
 
       {running ? (
-        <Link to="/estudiar" className="live-card">
+        <Link to="/estudiar" className={`live-card ${paused ? "paused" : ""}`}>
           <span className="dotlive" />
           <span className="grow">
-            <span className="eyebrow" style={{ color: "rgba(16,27,51,.65)" }}>En marcha</span>
+            <span className="eyebrow" style={{ color: "rgba(16,27,51,.65)" }}>{paused ? "En pausa" : running.pomo ? `Pomodoro · bloque ${running.pomo.done + 1}` : "En marcha"}</span>
             <b className="ellipsis" style={{ display: "block" }}>{running.subjectName}</b>
           </span>
           <span className="num">{fmtClock(running.targetMin ? running.targetMin * 60 - elapsedSec : elapsedSec)}</span>
+          <Icon name="next" size={20} />
+        </Link>
+      ) : pomoBreak ? (
+        <Link to="/estudiar" className="live-card break">
+          <Icon name="coffee" size={20} />
+          <span className="grow">
+            <span className="eyebrow" style={{ color: "rgba(16,27,51,.65)" }}>{breakLeftSec > 0 ? "Descanso del pomodoro" : "Terminó el descanso"}</span>
+            <b className="ellipsis" style={{ display: "block" }}>{pomoBreak.subjectName}</b>
+          </span>
+          <span className="num">{breakLeftSec > 0 ? fmtClock(breakLeftSec) : `Bloque ${pomoBreak.pomo.done + 1}`}</span>
           <Icon name="next" size={20} />
         </Link>
       ) : (

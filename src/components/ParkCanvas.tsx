@@ -12,8 +12,9 @@ export function useParkWorld(): ParkWorld {
 }
 
 /** Lienzo del parque. `compact` = vista chica sin interacción (la tarjeta del inicio). */
-export function ParkCanvas({ compact, onSelect, sceneRef, label }: {
+export function ParkCanvas({ compact, frame, onSelect, sceneRef, label }: {
   compact?: boolean;
+  frame?: number;
   onSelect?: (s: ParkSelection | null) => void;
   sceneRef?: React.MutableRefObject<ParkScene | null>;
   label: string;
@@ -22,11 +23,11 @@ export function ParkCanvas({ compact, onSelect, sceneRef, label }: {
   const cb = useRef(onSelect);
   cb.current = onSelect;
   useEffect(() => {
-    const scene = createScene({ compact });
+    const scene = createScene({ compact, frame });
     scene.init(ref.current!, (s) => cb.current?.(s));
     scene.start();
     if (sceneRef) sceneRef.current = scene;
     return () => { scene.destroy(); if (sceneRef) sceneRef.current = null; };
-  }, [compact, sceneRef]);
+  }, [compact, frame, sceneRef]);
   return <canvas ref={ref} className="park-canvas" role="img" aria-label={label} />;
 }

@@ -46,6 +46,11 @@ export function Sheet({ open, onClose, children, label, title, eyebrow }: {
 const paths: Record<string, ReactNode> = {
   home: <><path d="M3.5 10.5L12 4l8.5 6.5" /><path d="M5.5 9v10.5h13V9" /><path d="M10 19.5v-5h4v5" /></>,
   timer: <><circle cx="12" cy="13.5" r="7.5" /><path d="M12 9.5v4l2.5 2M9.5 2.5h5M19 6l1.5-1.5" /></>,
+  sound: <><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></>,
+  mute: <><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></>,
+  coffee: <><path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z" /><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5c-.6 1 .6 1.6 0 2.8M12 3.5c-.6 1 .6 1.6 0 2.8" /></>,
+  tomato: <><circle cx="12" cy="13.5" r="7" /><path d="M12 6.5V4M9 6.8l3 1.5 3-1.5M12 10v3.5l2 1.5" /></>,
+  music: <><path d="M9 17.5V6l10-2v11.5" /><circle cx="6.5" cy="17.5" r="2.5" /><circle cx="16.5" cy="15.5" r="2.5" /></>,
   rank: <><path d="M4 20h16" /><rect x="9.5" y="6" width="5" height="14" rx="1" /><rect x="4" y="11" width="5" height="9" rx="1" /><rect x="15" y="14" width="5" height="6" rx="1" /></>,
   calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4" /><circle cx="15.5" cy="15" r="1.4" fill="currentColor" stroke="none" /></>,
   map: <><rect x="3" y="3.5" width="7" height="5" rx="1.5" /><rect x="14" y="3.5" width="7" height="5" rx="1.5" /><rect x="8.5" y="15.5" width="7" height="5" rx="1.5" /><path d="M6.5 8.5v2.5a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V8.5M12 13v2.5" /></>,
