@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { drawPiece, makeFrame, makePainter } from "../iso/iso";
 import { starsOf } from "../iso/park";
+import { sfx } from "../lib/sound";
 import { pieceDef, RARITY, type Rarity } from "../lib/catalog";
 import type { PieceKey } from "../lib/types";
 
@@ -16,6 +17,9 @@ export function Reveal({ piece, count, children }: { piece: PieceKey; count: num
   const [shown, setShown] = useState(REDUCE);
   const p = pieceDef(piece);
   const rc = RARITY[p.r as Rarity].color;
+
+  // Golpes del cajón y el brillo al abrirse (si los efectos están prendidos)
+  useEffect(() => { const t = window.setTimeout(() => sfx("crate"), REDUCE ? 0 : 450); return () => window.clearTimeout(t); }, []);
 
   useEffect(() => {
     const cv = ref.current!;

@@ -44,4 +44,4 @@ export type ParkScene = {
   bench(n?: number): number;
   benchZoom(n?: number): number;
 };
-export function createScene(opts?: { compact?: boolean }): ParkScene;
+export function createScene(opts?: { compact?: boolean; frame?: number }): ParkScene;

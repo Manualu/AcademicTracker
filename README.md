@@ -5,6 +5,9 @@ App web instalable (PWA) para el Tratado de la Remontada: horas de estudio con c
 ## Qué tiene
 
 - **Estudiar**: cronómetro con cuenta regresiva (25 min, 50 min, 1 h 30, 2 h) o libre, y carga manual. Cada sesión fabrica una pieza para tu planta: tornillo, engranaje, motor, torno, brazo robótico o alto horno según la duración. Si cortás la cuenta regresiva antes, las horas cuentan igual pero sale chatarra.
+- **Pomodoro y pausa**: bloques de 25/5 o 50/10 (descanso largo cada 4). Cada bloque terminado abre un cajón; los descansos no suman. Cualquier sesión se puede pausar hasta 5 minutos: si se pasa, se guarda lo hecho.
+- **Sonido**: ambientes para estudiar (lluvia, olas, fábrica lejana, ruido marrón, rosa y blanco), efectos (arranque, campana, cajón) y música del parque. Todo se genera en la app, sin archivos. Mientras suena un ambiente, el reproductor de la pantalla bloqueada muestra la materia y el tiempo que queda. Preferencias por dispositivo en Perfil.
+- **Modo Estudio (iPhone)**: la app corre dos Atajos al empezar y al terminar para prender y apagar un modo Concentración que silencia las apps que elijas (guía en Perfil). Una web no puede bloquear apps por su cuenta.
 - **Modo avión**: la app queda guardada en el celular y abre sin conexión. El cronómetro calcula el tiempo con la hora de inicio, así que sigue contando con la pantalla bloqueada o con la app cerrada. Lo que cargás sin señal (sesiones, actividad, exámenes, materias) queda en una cola en el celular y se sube solo cuando vuelve la conexión.
 - **Inicio**: avance de la semana (14 h, contadas de lunes a domingo) con el ritmo esperado, actividad física (3 por semana), próximo examen, tu planta de la semana y lo que hace el grupo en vivo.
 - **Ranking**: tres tablas (horas, actividad física y constancia), cada una en versión semanal o histórica (desde el 9/10/2026, fecha del tratado).

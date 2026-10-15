@@ -1,3 +1,5 @@
+import { isIOS, runShortcut, usePrefs } from "../lib/prefs";
+import { sfx } from "../lib/sound";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { IsoPiece } from "../components/IsoPiece";
@@ -65,6 +67,80 @@ function AvatarEditor({ me, onClose }: { me: Profile; onClose: () => void }) {
   );
 }
 
+/** Sonido (efectos, música del parque) y modo Estudio con Atajos de iPhone. Se guarda en este dispositivo. */
+function SoundAndFocus() {
+  const [prefs, setPrefs] = usePrefs();
+  const [guide, setGuide] = useState(false);
+  const ios = isIOS();
+  return (
+    <>
+      <div className="section-title"><h2 className="h2">Sonido y concentración</h2><span className="eyebrow">En este dispositivo</span></div>
+      <div className="card settings">
+        <label className="toggle">
+          <span className="ti"><Icon name="sound" size={18} /></span>
+          <span className="small grow">Efectos: arranque de la máquina, campana al terminar y el cajón</span>
+          <input type="checkbox" className="switch" checked={prefs.sfx} onChange={() => { setPrefs({ sfx: !prefs.sfx }); if (!prefs.sfx) setTimeout(() => sfx("bell"), 50); }} />
+        </label>
+        <label className="toggle">
+          <span className="ti"><Icon name="music" size={18} /></span>
+          <span className="small grow">Música suave en el parque (Inicio)</span>
+          <input type="checkbox" className="switch" checked={prefs.parkMusic} onChange={() => setPrefs({ parkMusic: !prefs.parkMusic })} />
+        </label>
+        <label className="toggle">
+          <span className="ti"><Icon name="moon" size={18} /></span>
+          <span className="small grow">
+            Modo Estudio: bloquear apps al empezar a estudiar
+            <span className="tiny muted" style={{ display: "block" }}>{ios ? "Con Atajos y el modo Concentración del iPhone." : "En iPhone, con Atajos. En Android, activá Bienestar digital → Modo Concentración a mano."}</span>
+          </span>
+          <input type="checkbox" className="switch" checked={prefs.focusShortcuts} disabled={!ios && !prefs.focusShortcuts}
+            onChange={() => { const on = !prefs.focusShortcuts; setPrefs({ focusShortcuts: on }); if (on) setGuide(true); }} />
+        </label>
+        {(ios || prefs.focusShortcuts) && (
+          <div className="toggle">
+            <span className="ti"><Icon name="info" size={18} /></span>
+            <span className="small grow">Cómo configurarlo (5 minutos, una sola vez)</span>
+            <button className="btn sm" onClick={() => setGuide(true)}>Ver guía</button>
+          </div>
+        )}
+      </div>
+      <FocusGuide open={guide} onClose={() => setGuide(false)} />
+    </>
+  );
+}
+
+function FocusGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [prefs, setPrefs] = usePrefs();
+  return (
+    <Sheet open={open} onClose={onClose} label="Modo Estudio con Atajos" title="Modo Estudio" eyebrow="iPhone · una sola vez">
+      <div className="stack" style={{ gap: 12 }}>
+        <p className="small" style={{ margin: 0 }}>
+          Remontada no puede bloquear apps por su cuenta (eso solo lo pueden hacer las apps de la App Store), pero sí puede prender
+          tu modo Concentración del iPhone al empezar y apagarlo al terminar, usando dos Atajos.
+        </p>
+        <ol className="guide-steps">
+          <li><b>Creá el modo Concentración.</b> Ajustes → Concentración → <b>+</b> → Personalizar → nombre <b>Estudio</b>. En <i>Apps</i>, elegí <b>Silenciar apps</b> y marcá las que te distraen (Instagram, TikTok…), o <b>Permitir apps</b> y dejá solo Remontada.</li>
+          <li><b>Atajo para empezar.</b> App Atajos → <b>+</b> → buscá la acción de <i>Concentración</i> (activar modo de concentración) y elegí <b>Activar</b> · <b>Estudio</b> · hasta que lo desactive. Nombralo exactamente así:
+            <input className="input" value={prefs.shortcutStart} onChange={(e) => setPrefs({ shortcutStart: e.target.value })} aria-label="Nombre del atajo para empezar" />
+          </li>
+          <li><b>Atajo para terminar.</b> Igual, pero con la misma acción en <b>Desactivar</b> · <b>Estudio</b>. Nombralo:
+            <input className="input" value={prefs.shortcutEnd} onChange={(e) => setPrefs({ shortcutEnd: e.target.value })} aria-label="Nombre del atajo para terminar" />
+          </li>
+          <li><b>Opcional:</b> al final de cada atajo agregá la acción <i>Abrir app</i> → Safari, o abrí Remontada desde el ícono, para volver rápido.</li>
+        </ol>
+        <p className="tiny muted" style={{ margin: 0 }}>
+          Al tocar <b>Empezar</b>, se abre Atajos un segundo, prende el modo Estudio y volvés a Remontada (el cronómetro ya está corriendo).
+          Al terminar la sesión o el pomodoro, se apaga. La primera vez el iPhone te pide permiso para correr el atajo.
+        </p>
+        <div className="row">
+          <button className="btn grow" onClick={() => runShortcut("start")} disabled={!prefs.focusShortcuts}>Probar “empezar”</button>
+          <button className="btn grow" onClick={() => runShortcut("end")} disabled={!prefs.focusShortcuts}>Probar “terminar”</button>
+        </div>
+        <button className="btn primary block" onClick={onClose}>Listo</button>
+      </div>
+    </Sheet>
+  );
+}
+
 function Settings({ me }: { me: Profile }) {
   const { dispatch, data, toast, setUserId } = useStore();
   const nav = useNavigate();
@@ -118,6 +194,8 @@ function Settings({ me }: { me: Profile }) {
           </label>
         ))}
       </div>
+
+      <SoundAndFocus />
 
       <div className="section-title"><h2 className="h2">Tema</h2></div>
       <div className="seg" role="group" aria-label="Tema">

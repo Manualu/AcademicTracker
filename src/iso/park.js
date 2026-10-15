@@ -653,6 +653,9 @@ function drawFireworks(P) {
 // ============================================================================
 export function createScene(opts = {}) {
   const compact = !!opts.compact;
+  // Parte de arriba del lienzo donde se encuadra la isla (Inicio: el lienzo ocupa toda la
+  // pantalla para que el cielo siga detrás del panel, pero la isla se centra en el 70 % de arriba)
+  const frame = opts.frame ?? 1;
   let canvas, ctx, W = 0, H = 0, dpr = 1;
   const cam = { cx: 10, cy: 10, zoom: 1, fitN: 10, userMoved: false, tx: null, ty: null, tz: null };
   let hits = [];
@@ -676,11 +679,11 @@ export function createScene(opts = {}) {
   // El suelo (cientos de baldosas) también se guarda como imagen y solo se rehace si cambia.
   let groundSp = null;
   // En vertical se deja que el parque desborde un poco a los costados (se puede arrastrar)
-  const fitTw = (n) => compact ? Math.min(((W - 8) / n) * 1.05, (H - 24) / (n / 2 + 1.6)) : Math.min(((W - 20) / n) * (W < H ? 1.38 : 1), (H - 150) / (n / 2 + 2.6));
+  const fitTw = (n) => { const FH = H * frame; return compact ? Math.min(((W - 8) / n) * 1.05, (FH - 24) / (n / 2 + 1.6)) : Math.min(((W - 20) / n) * (W < FH ? 1.38 : 1), (FH - 150) / (n / 2 + 2.6)); };
   function view() {
     const tw = fitTw(cam.fitN) * cam.zoom;
     const ox = W / 2 - (cam.cx - cam.cy) * tw / 2;
-    const oy = H * (compact ? 0.64 : 0.6) - (cam.cx + cam.cy) * tw / 4;
+    const oy = H * frame * (compact ? 0.64 : 0.6) - (cam.cx + cam.cy) * tw / 4;
     return { tw, ox, oy };
   }
   const toWorld = (sx, sy, v = view()) => {

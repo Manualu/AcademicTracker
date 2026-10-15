@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from "react-router-d
 import { BottomNav, NetBar, Toasts } from "./components/ui";
 import { StoreProvider, useStore } from "./lib/store";
 import { TimerProvider } from "./lib/timer";
+import { SoundDirector } from "./components/SoundDirector";
 import Carrera from "./screens/Carrera";
 import Estudiar from "./screens/Estudiar";
 import Examenes from "./screens/Examenes";
@@ -25,6 +26,7 @@ function Shell() {
   if (!userId) return <div className="app"><Login /></div>;
   return (
     <TimerProvider>
+      <SoundDirector />
       <Toasts />
       <div className="app">
         <NetBar />
