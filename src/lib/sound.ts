@@ -185,8 +185,8 @@ const urlFor = (k: AmbientKind) => { let u = urls.get(k); if (!u) { u = URL.crea
 
 let el: HTMLAudioElement | null = null;
 let playingKind: AmbientKind | null = null;
-type AmbientState = { kind: AmbientKind | null; playing: boolean; blocked: boolean };
-let amb: AmbientState = { kind: null, playing: false, blocked: false };
+type AmbientState = { kind: AmbientKind | null; playing: boolean; blocked: boolean; previewUntil: number };
+let amb: AmbientState = { kind: null, playing: false, blocked: false, previewUntil: 0 };
 const ambSubs = new Set<(s: AmbientState) => void>();
 const setAmb = (p: Partial<AmbientState>) => { amb = { ...amb, ...p }; ambSubs.forEach((f) => f(amb)); };
 export function useAmbient() {
@@ -216,7 +216,20 @@ export async function playAmbient(kind: AmbientKind | null, vol = getPrefs().amb
   setAmb({ kind });
   try { await a.play(); } catch { setAmb({ playing: false, blocked: true }); }
 }
-export function pauseAmbient() { el?.pause(); }
+export function pauseAmbient() { stopPreviewTimer(); el?.pause(); }
+
+// Muestra de 10 segundos al elegir un ambiente (para no elegir a ciegas)
+export const PREVIEW_SEC = 10;
+let previewTimer: number | null = null;
+function stopPreviewTimer() { if (previewTimer) { window.clearTimeout(previewTimer); previewTimer = null; } setAmb({ previewUntil: 0 }); }
+export async function previewAmbient(kind: AmbientKind, vol = getPrefs().ambientVol) {
+  stopPreviewTimer();
+  await playAmbient(kind, vol);
+  setAmb({ previewUntil: Date.now() + PREVIEW_SEC * 1000 });
+  previewTimer = window.setTimeout(() => { previewTimer = null; el?.pause(); setAmb({ previewUntil: 0 }); }, PREVIEW_SEC * 1000);
+}
+/** La sesión toma el control: si había una muestra corriendo, deja de cortarse a los 10 s. */
+export function keepPlaying() { if (previewTimer) { window.clearTimeout(previewTimer); previewTimer = null; setAmb({ previewUntil: 0 }); } }
 export function setAmbientVolume(v: number) { if (el) el.volume = Math.max(0, Math.min(1, v)); }
 
 // ------------------------------------------------------------------ pantalla bloqueada

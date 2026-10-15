@@ -1292,7 +1292,7 @@ body.focus .nav { display: none; }
   background: var(--surface); border: 1.5px solid var(--hair); border-radius: 16px; cursor: pointer;
 }
 .amb b { font-size: 0.92rem; margin-top: 4px; }
-.amb > span:last-child { font-size: 0.72rem; color: var(--ink-3); line-height: 1.25; }
+.amb .amb-d { font-size: 0.72rem; color: var(--ink-3); line-height: 1.25; }
 .amb[aria-checked="true"] { border-color: var(--blue); background: var(--blue-soft); }
 .amb-wave { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
 .amb-wave i { width: 4px; border-radius: 2px; background: var(--blue); opacity: 0.55; height: 30%; }
@@ -1321,3 +1321,7 @@ input[type="range"] { width: 100%; accent-color: var(--blue); }
 .live-card.break { background: #cfe6ff; }
 .guide-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; line-height: 1.4; }
 .guide-steps .input { margin-top: 6px; }
+.amb { position: relative; overflow: hidden; }
+.amb-preview { margin-top: 4px; font-family: var(--mono); font-size: 0.62rem !important; letter-spacing: 0.05em; text-transform: uppercase; color: var(--blue) !important; }
+.amb-preview i { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--blue); transform-origin: left; animation: amb-prev linear forwards; }
+@keyframes amb-prev { from { transform: scaleX(1); } to { transform: scaleX(0); } }
