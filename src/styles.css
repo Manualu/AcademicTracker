@@ -1325,3 +1325,6 @@ input[type="range"] { width: 100%; accent-color: var(--blue); }
 .amb-preview { margin-top: 4px; font-family: var(--mono); font-size: 0.62rem !important; letter-spacing: 0.05em; text-transform: uppercase; color: var(--blue) !important; }
 .amb-preview i { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--blue); transform-origin: left; animation: amb-prev linear forwards; }
 @keyframes amb-prev { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.music-box { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--hair); }
+.music-box > .row svg { color: #1db954; }
+.music-box > .row .tiny { margin-left: auto; }
