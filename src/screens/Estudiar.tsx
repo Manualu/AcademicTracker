@@ -11,7 +11,7 @@ import { useMe, useStore } from "../lib/store";
 import { dayKey, fmtClock, fmtMinutes, fmtTime, parseDay, uuid } from "../lib/time";
 import { POMO_PRESETS, useTimer } from "../lib/timer";
 import { AmbientSheet } from "../components/AmbientSheet";
-import { runShortcut, usePrefs } from "../lib/prefs";
+import { musicService, onSessionStart, runShortcut, usePrefs } from "../lib/prefs";
 import { AMBIENTS, playAmbient, useAmbient } from "../lib/sound";
 import type { PieceKey } from "../lib/types";
 
@@ -455,8 +455,8 @@ export default function Estudiar() {
       <div className="step-label"><span className="n">3</span><h2 className="h2">Sonido</h2><span className="eyebrow" style={{ marginLeft: "auto" }}>Opcional</span></div>
       <button className="sound-pick" onClick={() => setSoundOpen(true)}>
         <Icon name={prefs.ambient ? "sound" : "mute"} size={20} />
-        <span className="grow"><b>{prefs.ambient ? AMBIENTS.find((a) => a.k === prefs.ambient)?.n : "Silencio"}</b>
-          <span>{prefs.ambient ? "Suena mientras estudiás, también con el celu bloqueado" : "Lluvia, olas, fábrica lejana o ruido para concentrarte"}</span></span>
+        <span className="grow"><b>{[prefs.ambient ? AMBIENTS.find((a) => a.k === prefs.ambient)?.n : null, musicService(prefs.musicLink) && prefs.musicOnStart ? `Tu playlist de ${musicService(prefs.musicLink)}` : null].filter(Boolean).join(" + ") || "Silencio"}</b>
+          <span>{prefs.musicLink && musicService(prefs.musicLink) && prefs.musicOnStart ? "La playlist se abre al tocar Empezar" : prefs.ambient ? "Suena mientras estudiás, también con el celu bloqueado" : "Lluvia, olas, fábrica lejana, ruido o tu propia playlist"}</span></span>
         <Icon name="next" size={18} />
       </button>
       <AmbientSheet open={soundOpen} onClose={() => setSoundOpen(false)} />
@@ -470,7 +470,7 @@ export default function Estudiar() {
               const p = POMO_PRESETS[preset];
               start({ subjectId: subject.id, subjectName: name, targetMin: p.work, pomo: { work: p.work, rest: p.rest, longRest: p.longRest, every: 4, done: 0 } });
             } else start({ subjectId: subject.id, subjectName: name, targetMin: duration });
-            runShortcut("start");
+            onSessionStart();
           }}>
           {ready ? <><Icon name="play" size={20} />Empezar {duration === "pomo" ? `pomodoro ${POMO_PRESETS[preset].label}` : duration ? fmtMinutes(duration) : "en modo libre"}</> : "Elegí una materia"}
         </button>

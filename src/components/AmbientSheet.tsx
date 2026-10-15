@@ -1,4 +1,4 @@
-import { isIOS, usePrefs } from "../lib/prefs";
+import { isIOS, musicService, openMusic, usePrefs } from "../lib/prefs";
 import { AMBIENTS, playAmbient, pauseAmbient, PREVIEW_SEC, previewAmbient, setAmbientVolume, useAmbient } from "../lib/sound";
 import { useTimer } from "../lib/timer";
 import { Icon, Sheet } from "./ui";
@@ -38,6 +38,28 @@ export function AmbientSheet({ open, onClose }: { open: boolean; onClose: () => 
               )}
             </button>
           ))}
+        </div>
+        <div className="music-box">
+          <div className="row" style={{ gap: 8 }}><Icon name="music" size={18} /><b>Tu playlist</b><span className="tiny muted">Spotify, YouTube Music, Apple Music…</span></div>
+          <input className="input" type="url" inputMode="url" placeholder="Pegá el link de tu playlist" value={prefs.musicLink}
+            onChange={(e) => setPrefs({ musicLink: e.target.value })} />
+          {prefs.musicLink.trim() && !musicService(prefs.musicLink) && <p className="tiny" style={{ margin: 0, color: "var(--red)" }}>Tiene que ser un link que empiece con https://</p>}
+          {musicService(prefs.musicLink) && (
+            <>
+              <label className="toggle" style={{ padding: 0, border: 0 }}>
+                <span className="small grow">Abrirla en {musicService(prefs.musicLink)} al tocar Empezar</span>
+                <input type="checkbox" className="switch" checked={prefs.musicOnStart} onChange={() => setPrefs({ musicOnStart: !prefs.musicOnStart })} />
+              </label>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn sm" onClick={() => openMusic()}><Icon name="play" size={14} />Abrir ahora</button>
+                <button className="btn sm" onClick={() => setPrefs({ musicLink: "" })}>Quitar</button>
+              </div>
+              <p className="tiny muted" style={{ margin: 0 }}>
+                Se abre la playlist en su app; dale play ahí y volvé a Remontada (el cronómetro ya está corriendo). La pausa y el final de la sesión no frenan esa música.
+                {isIOS() && prefs.focusShortcuts ? " Como tenés el modo Estudio con Atajos, al empezar se corre el Atajo: si querés también la música, agregale al Atajo la acción «Abrir URL» con este link." : ""}
+              </p>
+            </>
+          )}
         </div>
         {!isIOS() && (
           <label className="field">
