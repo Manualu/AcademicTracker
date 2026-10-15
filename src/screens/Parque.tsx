@@ -49,7 +49,6 @@ function naveImg(f: { n: string; col: string }, form: number, w = 260, h = 200):
 // ---------------------------------------------------------------- Inspector
 export function Inspector({ sel, world, onClose, onFicha }: { sel: ParkSelection; world: ParkWorld; onClose: () => void; onFicha: (id: string, owner: string) => void }) {
   const nav = useNavigate();
-  const lead = world.friends.reduce<ParkWorld["friends"][number] | null>((a, b) => (!a || b.hours > a.hours ? b : a), null);
   let body: React.ReactNode = null;
   if ((sel.k === "nave" || sel.k === "racha" || sel.k === "cerrado") && sel.f) {
     const f = world.friends.find((x) => x.id === sel.f!.id) ?? sel.f;
@@ -64,14 +63,12 @@ export function Inspector({ sel, world, onClose, onFicha }: { sel: ParkSelection
           {f.live && (
             <p className="small live-line"><span className="dotlive" /> Estudiando <b>{f.live.subject}</b> hace {fmtMinutes(Math.max(0, Math.floor((Date.now() - f.live.startedAt) / 60000)))}</p>
           )}
-          {!f.live && f.active && <p className="small" style={{ margin: "4px 0 0" }}>Hoy hizo actividad física (por eso sale a trotar).</p>}
           <p className="small" style={{ margin: "4px 0 0" }}><b>{LEVELS[lvl - 1].n}</b>, {fmtH(f.hours)} h desde el tratado</p>
           <p className="small muted" style={{ margin: "2px 0 0" }}>
             {NAVE_FORMS[form].n}. {total} piezas, {f.inv.size} distintas.{next ? ` Le faltan ${Math.ceil(next.h - f.hours)} h para el nivel ${lvl + 1}.` : ""}
           </p>
           {f.closed && <p className="small strong" style={{ margin: "4px 0 0", color: "var(--red)" }}>No estudió ni hoy ni ayer: la nave está apagada.</p>}
           {f.flag && !f.closed && <p className="small" style={{ margin: "4px 0 0" }}><b>Racha de 7 días o más</b> (por eso la bandera).</p>}
-          {lead?.id === f.id && f.hours > 0 && !f.closed && <p className="small" style={{ margin: "4px 0 0" }}><b>Va primero en horas</b> (por eso la corona).</p>}
           <div className="row" style={{ marginTop: 8 }}><button className="btn sm" onClick={() => nav(`/perfil/${f.id}`)}>Ver perfil</button></div>
         </div>
       </>

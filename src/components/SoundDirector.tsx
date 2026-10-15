@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePrefs } from "../lib/prefs";
-import { AMBIENTS, pauseAmbient, playAmbient, setNowPlaying } from "../lib/sound";
+import { AMBIENTS, keepPlaying, pauseAmbient, playAmbient, setNowPlaying } from "../lib/sound";
 import { fmtTime } from "../lib/time";
 import { useTimer } from "../lib/timer";
 
@@ -13,9 +13,13 @@ export function SoundDirector() {
   const [prefs] = usePrefs();
   const on = !!running && !paused && !!prefs.ambient;
 
+  // Solo se calla al pasar de "sonando por la sesión" a parada/pausa: así no corta la muestra
+  // de 10 s cuando elegís un sonido antes de empezar.
+  const wasOn = useRef(false);
   useEffect(() => {
-    if (on) void playAmbient(prefs.ambient, prefs.ambientVol);
-    else pauseAmbient();
+    if (on) { keepPlaying(); void playAmbient(prefs.ambient, prefs.ambientVol); }
+    else if (wasOn.current) pauseAmbient();
+    wasOn.current = on;
   }, [on, prefs.ambient]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Texto del reproductor: se actualiza por minuto (no hace falta más seguido)
