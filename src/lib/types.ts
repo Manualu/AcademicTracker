@@ -89,6 +89,7 @@ export type Op =
   | { kind: "profile.update"; userId: string; patch: Partial<Omit<Profile, "id" | "createdAt">> }
   | { kind: "session.add"; session: StudySession }
   | { kind: "session.delete"; id: string; userId: string }
+  | { kind: "session.update"; id: string; userId: string; patch: { subjectId: string | null; subjectName: string } }
   | { kind: "activity.add"; activity: Activity }
   | { kind: "activity.delete"; id: string; userId: string }
   | { kind: "exam.add"; exam: Exam }

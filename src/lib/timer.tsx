@@ -105,6 +105,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [result, setResult] = useState<StudySession | null>(null);
   const [autoClosed, setAutoClosed] = useState(false);
   const savingRef = useRef(false);
+  const savedStartRef = useRef<number | null>(null);
   const bellRef = useRef<number | null>(null);
 
   const persist = (t: RunningTimer | null) => {
@@ -125,6 +126,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   /** Guarda la sesión. `endAt` = momento en que terminó el estudio (para encadenar el descanso). */
   const save = useCallback((t: RunningTimer, minutes: number, outcome: StudySession["outcome"], endAt = Date.now()) => {
     if (savingRef.current) return;
+    // Cada sesión (identificada por su hora de inicio) se guarda una sola vez, aunque el
+    // chequeo de "terminó" corra dos veces seguidas antes de que se actualice la pantalla
+    if (savedStartRef.current === t.startedAt) return;
+    savedStartRef.current = t.startedAt;
     savingRef.current = true;
     persist(null);
     const min = Math.min(MAX_MIN, Math.floor(minutes));

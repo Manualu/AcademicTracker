@@ -195,6 +195,8 @@ function Settings({ me }: { me: Profile }) {
         ))}
       </div>
 
+      <Link to="/historial" className="hist-link"><Icon name="clock" size={18} /><span className="grow">Historial de tus sesiones de estudio</span><Icon name="next" size={18} /></Link>
+
       <SoundAndFocus />
 
       <div className="section-title"><h2 className="h2">Tema</h2></div>

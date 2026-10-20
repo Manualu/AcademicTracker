@@ -11,6 +11,9 @@ export function applyOp(d: GroupData, op: Op): GroupData {
       return { ...d, sessions: [...d.sessions, op.session] };
     case "session.delete":
       return { ...d, sessions: d.sessions.filter((s) => s.id !== op.id) };
+    case "session.update":
+      // Solo se corrige la materia: la pieza, la duración y el horario quedan como estaban
+      return { ...d, sessions: d.sessions.map((s) => (s.id === op.id && s.userId === op.userId ? { ...s, ...op.patch } : s)) };
     case "activity.add":
       if (d.activities.some((a) => a.id === op.activity.id)) return d;
       return { ...d, activities: [...d.activities, op.activity] };

@@ -17,9 +17,9 @@ import type { PieceKey } from "../lib/types";
 
 const DURATIONS = [25, 50, 60, 90, 120];
 
-type Subj = { id: string | null; name: string };
+export type Subj = { id: string | null; name: string };
 
-function useMySubjects(): Subj[] {
+export function useMySubjects(): Subj[] {
   const { data, userId } = useStore();
   const me = useMe();
   return useMemo(() => {
@@ -38,7 +38,7 @@ function useMySubjects(): Subj[] {
   }, [data.statuses, data.sessions, userId, me?.planId]);
 }
 
-function SubjectPicker({ value, onChange }: { value: Subj | null; onChange: (s: Subj | null) => void }) {
+export function SubjectPicker({ value, onChange }: { value: Subj | null; onChange: (s: Subj | null) => void }) {
   const subjects = useMySubjects();
   const [custom, setCustom] = useState("");
   const [typing, setTyping] = useState(subjects.length === 0);
@@ -319,14 +319,23 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   const [subject, setSubject] = useState<Subj | null>(null);
   const [date, setDate] = useState(dayKey(new Date()));
   const [minutes, setMinutes] = useState(60);
-  const valid = subject && subject.name.trim() && minutes >= 1 && minutes <= 720 && date <= dayKey(new Date());
+  const [time, setTime] = useState(""); // hora de inicio (opcional)
+  // Hora de inicio elegida; si no se carga, hoy termina ahora y otro día empieza a las 17
+  const chosenStart = (() => {
+    if (!time) return null;
+    const [h, m] = time.split(":").map(Number);
+    const d = parseDay(date);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m);
+  })();
+  const endsInFuture = !!chosenStart && chosenStart.getTime() + minutes * 60_000 > Date.now();
+  const valid = subject && subject.name.trim() && minutes >= 1 && minutes <= 720 && date <= dayKey(new Date()) && !endsInFuture;
 
   function save() {
     if (!valid || !userId) return;
     const day = parseDay(date);
     const isToday = date === dayKey(new Date());
     // Si es hoy, la sesión termina ahora; si es otro día, se ubica a la tarde
-    const start = isToday ? new Date(Date.now() - minutes * 60_000) : new Date(day.getFullYear(), day.getMonth(), day.getDate(), 17, 0);
+    const start = chosenStart ?? (isToday ? new Date(Date.now() - minutes * 60_000) : new Date(day.getFullYear(), day.getMonth(), day.getDate(), 17, 0));
     if (start < day) start.setTime(day.getTime());
     const id = uuid();
     const piece = rollPiece(minutes, subject!.name, id);
@@ -348,10 +357,18 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
       <div className="stack" style={{ gap: 16 }}>
         <p className="small muted" style={{ margin: 0 }}>Para cuando estudiaste sin la app. Suma igual y también fabrica pieza.</p>
         <div className="field"><span>Materia</span><SubjectPicker value={subject} onChange={setSubject} /></div>
-        <label className="field">
-          <span>Día</span>
-          <input className="input" type="date" value={date} max={dayKey(new Date())} onChange={(e) => setDate(e.target.value)} />
-        </label>
+        <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
+          <label className="field grow">
+            <span>Día</span>
+            <input className="input" type="date" value={date} max={dayKey(new Date())} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <label className="field" style={{ width: 130 }}>
+            <span>Empezaste a las</span>
+            <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Hora de inicio (opcional)" />
+          </label>
+        </div>
+        {endsInFuture && <p className="tiny" style={{ margin: "-8px 0 0", color: "var(--red)" }}>Con esa hora y duración, la sesión termina en el futuro.</p>}
+        {!time && <p className="tiny muted" style={{ margin: "-8px 0 0" }}>Si no ponés la hora, {date === dayKey(new Date()) ? "se toma que terminaste recién" : "se guarda a las 17 h"}.</p>}
         <div className="field">
           <span>Duración</span>
           <div className="row" style={{ gap: 12 }}>
@@ -478,7 +495,7 @@ export default function Estudiar() {
 
       {todays.length > 0 && (
         <section>
-          <div className="section-title"><h2 className="h2">Hoy</h2><span className="eyebrow">{fmtMinutes(todays.reduce((a, s) => a + s.minutes, 0))} en total</span></div>
+          <div className="section-title"><h2 className="h2">Hoy</h2><span className="eyebrow">{fmtMinutes(todays.reduce((a, s) => a + s.minutes, 0))} en total</span><Link to="/historial" className="link" style={{ marginLeft: "auto" }}>Historial</Link></div>
           <div className="card tight">
             <ul className="feed">
               {todays.map((s) => (
@@ -500,6 +517,9 @@ export default function Estudiar() {
             </ul>
           </div>
         </section>
+      )}
+      {todays.length === 0 && data.sessions.some((s) => s.userId === userId) && (
+        <Link to="/historial" className="hist-link"><Icon name="clock" size={18} /><span className="grow">Historial de tus sesiones</span><Icon name="next" size={18} /></Link>
       )}
       <ManualSheet open={manual} onClose={() => setManual(false)} />
     </>
