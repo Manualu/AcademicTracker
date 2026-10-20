@@ -7,6 +7,7 @@ import { SoundDirector } from "./components/SoundDirector";
 import Carrera from "./screens/Carrera";
 import Estudiar from "./screens/Estudiar";
 import Examenes from "./screens/Examenes";
+import Historial from "./screens/Historial";
 import Home from "./screens/Home";
 import Login from "./screens/Login";
 import Parque from "./screens/Parque";
@@ -33,6 +34,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/estudiar" element={<Estudiar />} />
+          <Route path="/historial" element={<Historial />} />
           <Route path="/ranking" element={<Ranking />} />
           <Route path="/examenes" element={<Examenes />} />
           <Route path="/carrera" element={<Carrera />} />

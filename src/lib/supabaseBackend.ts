@@ -137,6 +137,9 @@ export class SupabaseBackend implements Backend {
       case "session.delete":
         check(await sb.from("study_sessions").delete().eq("id", op.id));
         return;
+      case "session.update":
+        check(await sb.from("study_sessions").update({ subject_id: op.patch.subjectId, subject_name: op.patch.subjectName }).eq("id", op.id));
+        return;
       case "activity.add": {
         const a = op.activity;
         check(await sb.from("activities").upsert(
