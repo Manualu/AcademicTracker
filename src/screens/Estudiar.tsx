@@ -9,7 +9,7 @@ import { Reveal } from "../components/Reveal";
 import { starsOf } from "../iso/park";
 import { useMe, useStore } from "../lib/store";
 import { dayKey, fmtClock, fmtMinutes, fmtTime, parseDay, uuid } from "../lib/time";
-import { POMO_PRESETS, useTimer } from "../lib/timer";
+import { BREAK_GRACE_MIN, POMO_PRESETS, useTimer } from "../lib/timer";
 import { AmbientSheet } from "../components/AmbientSheet";
 import { musicService, onSessionStart, runShortcut, usePrefs } from "../lib/prefs";
 import { AMBIENTS, playAmbient, useAmbient } from "../lib/sound";
@@ -127,7 +127,8 @@ function Running() {
   let caption: string;
   let tierText: string;
   if (countdown) {
-    const tier = tierFor(running.targetMin!);
+    // En pomodoros seguidos, el descanso sumado también cuenta para la categoría del cajón
+    const tier = tierFor(running.targetMin! + Math.round(running.bonusMin ?? 0));
     piece = TIER_FACE[tier.t];
     progress = Math.min(1, elapsedMin / running.targetMin!);
     pieceProgress = progress;
@@ -163,7 +164,7 @@ function Running() {
         </div>
         <div className="subject">
           <p className="eyebrow" style={{ color: "var(--con-ink-3)" }}>
-            {running.pomo ? `Pomodoro ${running.pomo.work}/${running.pomo.rest} · bloque ${running.pomo.done + 1}` : countdown ? `Sesión de ${fmtMinutes(running.targetMin!)}` : "Modo libre"}
+            {running.pomo ? `Pomodoro ${running.pomo.work}/${running.pomo.rest} · bloque ${running.pomo.done + 1}${running.bonusMin ? ` · +${Math.round(running.bonusMin)} min de descanso` : ""}` : countdown ? `Sesión de ${fmtMinutes(running.targetMin!)}` : "Modo libre"}
           </p>
           <h1 className="h1" style={{ color: "#fff", marginTop: 6 }}>{running.subjectName}</h1>
         </div>
@@ -220,7 +221,7 @@ function Running() {
 }
 
 function BreakView() {
-  const { pomoBreak, breakLeftSec, nextBlock, endPomodoro } = useTimer();
+  const { pomoBreak, breakLeftSec, breakCounts, graceLeftSec, nextBlock, endPomodoro } = useTimer();
   const nav = useNavigate();
   const [soundOpen, setSoundOpen] = useState(false);
   const [prefs] = usePrefs();
@@ -247,8 +248,12 @@ function BreakView() {
         <Dial progress={over ? 1 : 1 - breakLeftSec / total} color="#7eb8ff">
           <div className="break-face"><Icon name="coffee" size={84} stroke={1.3} /></div>
         </Dial>
-        <div className="clock" aria-live="off">{fmtClock(breakLeftSec)}</div>
-        <div className="clock-sub">{over ? <>A estudiar: bloque {n + 1}</> : <>Bloque {n} listo · levantate, tomá agua, estirá</>}</div>
+        <div className="clock" aria-live="off">{over && breakCounts ? fmtClock(graceLeftSec) : fmtClock(breakLeftSec)}</div>
+        <div className="clock-sub">
+          {!over ? <>Bloque {n} listo · levantate, tomá agua, estirá</>
+            : breakCounts ? <>Arrancá el bloque {n + 1} ya para que el descanso cuente</>
+            : <>Te pasaste del descanso: si seguís, no suma</>}
+        </div>
         <div className="pomo-dots" aria-label={`${n} bloques hechos`}>
           {Array.from({ length: Math.max(pomoBreak.pomo.every, n) }, (_, i) => <i key={i} className={i < n ? "on" : ""} />)}
           <span>{fmtMinutes(today)} hoy de esta materia</span>
@@ -256,7 +261,9 @@ function BreakView() {
         <div className="actions">
           <button className={`btn block ${over ? "primary big" : "pause-btn"}`} onClick={nextBlock}><Icon name="play" size={18} />{over ? `Empezar bloque ${n + 1}` : `Saltar descanso y empezar bloque ${n + 1}`}</button>
           <button className="btn block ghost-dark" onClick={() => { endPomodoro(); runShortcut("end"); nav("/"); }}>Terminar el pomodoro</button>
-          <p className="note">El descanso no suma horas. Cuando termine, suena y te avisa.</p>
+          <p className="note">{breakCounts
+            ? `Si arrancás el bloque siguiente antes de que termine el descanso (o hasta ${BREAK_GRACE_MIN} min después), el descanso suma como estudio.`
+            : "El descanso ya no suma. Igual podés seguir con otro bloque."}</p>
         </div>
       </div>
       <AmbientSheet open={soundOpen} onClose={() => setSoundOpen(false)} />
@@ -265,7 +272,7 @@ function BreakView() {
 }
 
 function Result() {
-  const { result, clearResult, pomoBreak, endPomodoro, autoClosed } = useTimer();
+  const { result, clearResult, pomoBreak, endPomodoro, autoClosed, resultBonusMin } = useTimer();
   const { online, data, userId } = useStore();
   const [ficha, setFicha] = useState(false);
   const nav = useNavigate();
@@ -286,7 +293,7 @@ function Result() {
             {!scrap && <span className="rar big" style={{ ["--rc" as string]: rar.color }}>{rar.n}{n > 1 ? ` · ${"★".repeat(starsOf(n))}` : " · nueva"}</span>}
             <h2 className="h1">{scrap ? "Salió chatarra" : p.n}</h2>
             <p className="small">
-              <b style={{ color: "#fff" }}>{fmtMinutes(result.minutes)}</b> de {result.subjectName}.{" "}
+              <b style={{ color: "#fff" }}>{fmtMinutes(result.minutes)}</b> de {result.subjectName}{resultBonusMin > 0 ? ` (incluye ${resultBonusMin} min de descanso: volviste a tiempo)` : ""}.{" "}
               {scrap ? "Las horas cuentan igual; la pieza no. Con 5 chatarras reciclás una pieza."
                 : n === 1 ? "Pieza nueva para tu colección." : `Ya tenías ${n - 1}.${starsOf(n) > starsOf(n - 1) ? ` ¡Subió a ${"★".repeat(starsOf(n))}!` : ""}`}
               {!scrap && (online ? " Ya está en tu nave." : " Se sube cuando vuelva la señal.")}
@@ -462,7 +469,7 @@ export default function Estudiar() {
         <Icon name="info" size={16} />
         <span>
           {duration === "pomo"
-            ? <>Cada bloque de {POMO_PRESETS[preset].work} min que terminás abre un cajón{POMO_PRESETS[preset].work >= 50 ? <>: con 50 min salen piezas de una categoría más alta</> : null}. Descanso de {POMO_PRESETS[preset].rest} min y uno largo de {POMO_PRESETS[preset].longRest} cada 4 bloques; los descansos no suman horas. Si cortás un bloque, sale chatarra.</>
+            ? <>Cada bloque de {POMO_PRESETS[preset].work} min que terminás abre un cajón{POMO_PRESETS[preset].work >= 50 ? <>: con 50 min salen piezas de una categoría más alta</> : null}. Descanso de {POMO_PRESETS[preset].rest} min y uno largo de {POMO_PRESETS[preset].longRest} cada 4 bloques. Si volvés a tiempo, el descanso suma como estudio: {POMO_PRESETS[preset].work === 25 ? "cada bloque seguido cuenta media hora" : "cada bloque seguido cuenta una hora"}; si te colgás, no. Si cortás un bloque, sale chatarra.</>
             : duration
             ? <>Si llegás al final abrís un cajón de <b>categoría {tierFor(duration).t}</b>: puede salir común, rara, épica o legendaria{subject && areaOf(subject.name) !== "general" ? <>, y salen más las de {AREA_LABEL[areaOf(subject.name)].toLowerCase()}</> : null}. Si cortás antes, sale chatarra.</>
             : <>Sin límite: el cajón sube de categoría mientras estudiás y lo abrís cuando terminás.</>}

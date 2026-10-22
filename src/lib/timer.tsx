@@ -15,6 +15,11 @@ const BREAK_KEY = "remontada.break";
 const MAX_MIN = 720;
 /** Una pausa puede durar hasta 5 minutos; después la sesión se cierra con lo hecho. */
 export const PAUSE_MAX_MIN = 5;
+/**
+ * Pomodoros seguidos: el descanso cuenta como estudio solo si arrancás el bloque siguiente
+ * antes de que termine (o dentro de este margen). Si te colgás más, el descanso no suma.
+ */
+export const BREAK_GRACE_MIN = 2;
 
 /** Pomodoro: bloques de estudio con descansos. Cada bloque terminado es una sesión y abre un cajón. */
 export type Pomo = { work: number; rest: number; longRest: number; every: number; done: number };
@@ -31,9 +36,11 @@ export type RunningTimer = {
   pausedAt?: number | null; // en pausa desde
   pausedMs?: number; // tiempo total en pausa (no cuenta)
   pomo?: Pomo | null;
+  /** Minutos del descanso anterior que se suman a esta sesión (pomodoros seguidos). */
+  bonusMin?: number;
 };
 
-/** Descanso del pomodoro (entre bloques). No suma horas. */
+/** Descanso del pomodoro (entre bloques). Suma horas solo si volvés a tiempo al bloque siguiente. */
 export type PomoBreak = {
   startedAt: number;
   until: number;
@@ -62,10 +69,16 @@ type TimerCtx = {
   /** Pomodoro entre bloques */
   pomoBreak: PomoBreak | null;
   breakLeftSec: number;
+  /** El descanso todavía cuenta como estudio si arrancás ahora */
+  breakCounts: boolean;
+  /** Segundos de margen que quedan después de terminado el descanso */
+  graceLeftSec: number;
   nextBlock: () => void;
   endPomodoro: () => void;
   /** Aviso cuando la pausa pasó el límite y la sesión se cerró sola */
   autoClosed: boolean;
+  /** Minutos de descanso que se sumaron a la última sesión (pomodoros seguidos) */
+  resultBonusMin: number;
 };
 
 const Ctx = createContext<TimerCtx | null>(null);
@@ -104,6 +117,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [now, setNow] = useState(Date.now());
   const [result, setResult] = useState<StudySession | null>(null);
   const [autoClosed, setAutoClosed] = useState(false);
+  const [resultBonusMin, setResultBonus] = useState(0);
   const savingRef = useRef(false);
   const savedStartRef = useRef<number | null>(null);
   const bellRef = useRef<number | null>(null);
@@ -132,15 +146,18 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     savedStartRef.current = t.startedAt;
     savingRef.current = true;
     persist(null);
-    const min = Math.min(MAX_MIN, Math.floor(minutes));
-    if (min >= 1 && userId) {
+    const studied = Math.floor(minutes);
+    // Pomodoros seguidos: se suma el descanso anterior y la sesión arranca cuando arrancó ese descanso
+    const bonus = studied >= 1 ? Math.max(0, Math.round(t.bonusMin ?? 0)) : 0;
+    const min = Math.min(MAX_MIN, studied + bonus);
+    if (studied >= 1 && userId) {
       const id = uuid();
       const session: StudySession = {
         id,
         userId,
         subjectId: t.subjectId,
         subjectName: t.subjectName,
-        startedAt: new Date(t.startedAt).toISOString(),
+        startedAt: new Date(t.startedAt - bonus * 60_000).toISOString(),
         minutes: min,
         source: "timer",
         outcome,
@@ -149,6 +166,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       };
       dispatch({ kind: "session.add", session });
       setResult(session);
+      setResultBonus(bonus);
       if (outcome === "completed") {
         if (document.visibilityState === "visible") { sfx("bell"); if (!getPrefs().sfx) beep(); }
         navigator.vibrate?.([120, 80, 120]);
@@ -159,7 +177,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       }
     }
     // Pomodoro: al terminar un bloque arranca el descanso
-    if (t.pomo && outcome === "completed" && min >= 1) {
+    if (t.pomo && outcome === "completed" && studied >= 1) {
       const done = t.pomo.done + 1;
       const long = done % t.pomo.every === 0;
       const rest = long ? t.pomo.longRest : t.pomo.rest;
@@ -212,7 +230,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     if (now - pomoBreak.until > 60_000) return; // terminó hace rato (app cerrada): sin ruido
     if (document.visibilityState === "visible") { sfx("bell"); if (!getPrefs().sfx) beep(); }
     navigator.vibrate?.([200, 100, 200]);
-    if (document.visibilityState !== "visible") void localNotify("Terminó el descanso", `Volvé a ${pomoBreak.subjectName}: bloque ${pomoBreak.pomo.done + 1}.`);
+    if (document.visibilityState !== "visible") void localNotify("Terminó el descanso", `Volvé a ${pomoBreak.subjectName}: si arrancás el bloque ${pomoBreak.pomo.done + 1} en ${BREAK_GRACE_MIN} min, el descanso cuenta.`);
   }, [now, pomoBreak]);
 
   // Pantalla encendida mientras corre el cronómetro (si el navegador lo permite)
@@ -250,10 +268,17 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const abandon = () => running && save({ ...running, pomo: null }, elapsedSec / 60, "abandoned");
   const discard = () => persist(null);
   const breakLeftSec = pomoBreak ? Math.max(0, (pomoBreak.until - now) / 1000) : 0;
+  const graceLeftSec = pomoBreak ? Math.max(0, (pomoBreak.until + BREAK_GRACE_MIN * 60_000 - now) / 1000) : 0;
+  const breakCounts = !!pomoBreak && graceLeftSec > 0;
   const nextBlock = () => {
     if (!pomoBreak) return;
     const b = pomoBreak;
-    start({ subjectId: b.subjectId, subjectName: b.subjectName, targetMin: b.pomo.work, pomo: b.pomo });
+    const n = Date.now();
+    // A tiempo: suma lo que descansaste (hasta el largo del descanso). Tarde: no suma nada.
+    const onTime = n <= b.until + BREAK_GRACE_MIN * 60_000;
+    const restMin = (b.until - b.startedAt) / 60_000;
+    const bonusMin = onTime ? Math.min(restMin, Math.max(0, (n - b.startedAt) / 60_000)) : 0;
+    start({ subjectId: b.subjectId, subjectName: b.subjectName, targetMin: b.pomo.work, pomo: b.pomo, bonusMin });
   };
   const endPomodoro = () => persistBreak(null);
 
@@ -261,7 +286,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{
       running, elapsedSec, paused, pauseLeftSec, start, pause, resume, finish, abandon, discard, result,
       clearResult: () => { setResult(null); setAutoClosed(false); },
-      pomoBreak, breakLeftSec, nextBlock, endPomodoro, autoClosed,
+      pomoBreak, breakLeftSec, breakCounts, graceLeftSec, nextBlock, endPomodoro, autoClosed, resultBonusMin,
     }}>
       {children}
     </Ctx.Provider>
