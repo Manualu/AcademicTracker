@@ -391,7 +391,6 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
 export default function Estudiar() {
   const { running, result, start, pomoBreak } = useTimer();
   const { data, userId, dispatch } = useStore();
-  const subjects = useMySubjects();
   const [subject, setSubject] = useState<Subj | null>(null);
   const [duration, setDuration] = useState<number | null | "pomo">(50);
   const [preset, setPreset] = useState(0);
@@ -400,8 +399,7 @@ export default function Estudiar() {
   const [prefs] = usePrefs();
   useFocusMode(!!running || !!result || !!pomoBreak);
 
-  // Arranca con la última materia que estudiaste elegida
-  useEffect(() => { if (!subject && subjects.length) setSubject(subjects[0]); }, [subjects]); // eslint-disable-line react-hooks/exhaustive-deps
+  // No se elige materia sola: cada sesión arranca sin materia y hay que tocar una
 
   const todays = data.sessions
     .filter((s) => s.userId === userId && dayKey(s.startedAt) === dayKey(new Date()))
@@ -418,7 +416,7 @@ export default function Estudiar() {
       <ScreenHead eyebrow="Sesión nueva" title="Estudiar" sub="Cada sesión abre un cajón con una máquina para tu nave. Más largo, mejor categoría."
         right={<button className="btn sm" onClick={() => setManual(true)}><Icon name="edit" size={16} />A mano</button>} />
 
-      <div className="step-label"><span className="n">1</span><h2 className="h2">Materia</h2></div>
+      <div className={`step-label ${ready ? "" : "needs"}`}><span className="n">1</span><h2 className="h2">Materia</h2>{!ready && <span className="step-hint">Elegí de qué vas a estudiar</span>}</div>
       <SubjectPicker value={subject} onChange={setSubject} />
 
       <div className="step-label"><span className="n">2</span><h2 className="h2">Duración</h2></div>
