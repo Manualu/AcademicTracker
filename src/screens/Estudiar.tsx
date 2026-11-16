@@ -43,6 +43,13 @@ export function SubjectPicker({ value, onChange }: { value: Subj | null; onChang
   const [custom, setCustom] = useState("");
   const [typing, setTyping] = useState(subjects.length === 0);
   const isCustom = value !== null && !subjects.some((s) => s.name === value.name);
+  // "probabilidad" y "Probabilidad" son la misma materia: se usa la que ya tenés (mismo nombre sin mayúsculas ni tildes)
+  const norm = (t: string) => t.trim().replace(/\s+/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const pickCustom = (text: string): Subj | null => {
+    if (!text.trim()) return null;
+    const hit = subjects.find((s) => norm(s.name) === norm(text));
+    return hit ?? { id: null, name: text };
+  };
   return (
     <div>
       <div className="chips subj-chips" role="group" aria-label="Materia">
@@ -50,7 +57,7 @@ export function SubjectPicker({ value, onChange }: { value: Subj | null; onChang
           <button key={s.name} className="chip" aria-pressed={value?.name === s.name} onClick={() => { setTyping(false); onChange(s); }}>{s.name}</button>
         ))}
         {subjects.length > 0 && (
-          <button className="chip add" aria-pressed={typing || isCustom} onClick={() => { setTyping(true); onChange(custom.trim() ? { id: null, name: custom } : null); }}>
+          <button className="chip add" aria-pressed={typing || isCustom} onClick={() => { setTyping(true); onChange(pickCustom(custom)); }}>
             <Icon name="plus" size={15} stroke={2.4} />Otra
           </button>
         )}
@@ -61,7 +68,7 @@ export function SubjectPicker({ value, onChange }: { value: Subj | null; onChang
           placeholder={subjects.length ? "Nombre de la materia" : "¿Qué vas a estudiar?"}
           value={isCustom ? value!.name : custom}
           autoFocus={subjects.length > 0}
-          onChange={(e) => { setCustom(e.target.value); onChange(e.target.value.trim() ? { id: null, name: e.target.value } : null); }}
+          onChange={(e) => { setCustom(e.target.value); onChange(pickCustom(e.target.value)); }}
           maxLength={80}
         />
       )}

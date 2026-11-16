@@ -1346,3 +1346,7 @@ input[type="range"] { width: 100%; accent-color: var(--blue); }
 .hist-filter .chip { flex: none; }
 .step-label .step-hint { margin-left: auto; font-size: 0.78rem; font-weight: 600; color: var(--red); }
 .step-label.needs .n { background: var(--red); color: #fff; }
+
+/* Nombres largos sin espacios no deben ensanchar la pantalla */
+b, .what, .name, .grow { overflow-wrap: anywhere; }
+.grow { min-width: 0; }

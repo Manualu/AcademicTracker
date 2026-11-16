@@ -228,7 +228,7 @@ function Catalogo({ onFicha }: { onFicha: (id: string, owner: string) => void })
       </div>
       <div className="chips" role="group" aria-label="Filtrar por rareza" style={{ marginBottom: 6 }}>
         <button className="chip" aria-pressed={rar === "todas"} onClick={() => setRar("todas")}>Todas</button>
-        {RARITY_ORDER.map((k) => <button key={k} className="chip" aria-pressed={rar === k} onClick={() => setRar(k)}><span className="rdot" style={{ background: RARITY[k].color }} />{RARITY[k].n}s</button>)}
+        {RARITY_ORDER.map((k) => <button key={k} className="chip" aria-pressed={rar === k} onClick={() => setRar(k)}><span className="rdot" style={{ background: RARITY[k].color }} />{k === "comun" ? "Comunes" : `${RARITY[k].n}s`}</button>)}
         <button className="chip" aria-pressed={only} onClick={() => setOnly(!only)}>Solo las que tiene</button>
       </div>
       {TIERS.map((t) => {
