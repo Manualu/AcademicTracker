@@ -1344,3 +1344,5 @@ input[type="range"] { width: 100%; accent-color: var(--blue); }
 .hist-filter { flex-wrap: nowrap; overflow-x: auto; margin-left: -16px; margin-right: -16px; padding: 2px 16px 6px; scrollbar-width: none; }
 .hist-filter::-webkit-scrollbar { display: none; }
 .hist-filter .chip { flex: none; }
+.step-label .step-hint { margin-left: auto; font-size: 0.78rem; font-weight: 600; color: var(--red); }
+.step-label.needs .n { background: var(--red); color: #fff; }
