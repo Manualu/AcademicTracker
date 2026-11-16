@@ -1,18 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { HashRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { BottomNav, NetBar, Toasts } from "./components/ui";
 import { StoreProvider, useStore } from "./lib/store";
 import { TimerProvider } from "./lib/timer";
 import { SoundDirector } from "./components/SoundDirector";
-import Carrera from "./screens/Carrera";
+const Carrera = lazy(() => import("./screens/Carrera"));
 import Estudiar from "./screens/Estudiar";
-import Examenes from "./screens/Examenes";
-import Historial from "./screens/Historial";
+const Examenes = lazy(() => import("./screens/Examenes"));
+const Historial = lazy(() => import("./screens/Historial"));
 import Home from "./screens/Home";
 import Login from "./screens/Login";
-import Parque from "./screens/Parque";
-import Perfil from "./screens/Perfil";
-import Ranking from "./screens/Ranking";
+const Parque = lazy(() => import("./screens/Parque"));
+const Perfil = lazy(() => import("./screens/Perfil"));
+const Ranking = lazy(() => import("./screens/Ranking"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -31,6 +31,7 @@ function Shell() {
       <Toasts />
       <div className="app">
         <NetBar />
+        <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/estudiar" element={<Estudiar />} />
@@ -42,6 +43,7 @@ function Shell() {
           <Route path="/parque" element={<Parque />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </div>
       <BottomNav />
     </TimerProvider>

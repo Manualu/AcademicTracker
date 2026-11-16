@@ -4,6 +4,7 @@ import { Avatar, Icon, ScreenHead, Sheet } from "../components/ui";
 import { groupEnd, groupLive, groupMinutes, groupRemaining, isExam, isGroup, isUrl, placeLabel } from "../lib/agenda";
 import { useMe, useStore } from "../lib/store";
 import { addDays, capitalize, dayKey, daysUntil, fmtMinutes, fmtTime, startOfWeek, uuid } from "../lib/time";
+import { onSessionStart } from "../lib/prefs";
 import { useTimer } from "../lib/timer";
 import type { Exam, ExamKind } from "../lib/types";
 
@@ -189,6 +190,7 @@ function GroupDetail({ exam, onClose }: { exam: Exam; onClose: () => void }) {
   const startHere = () => {
     if (!imIn) join();
     start({ subjectId: null, subjectName: exam.subjectName, targetMin: groupRemaining(exam) });
+    onSessionStart();
     onClose();
     nav("/estudiar");
   };
@@ -318,8 +320,8 @@ function AddExam({ open, onClose, initialMode }: { open: boolean; onClose: () =>
     <Sheet open={open} onClose={onClose} label={group ? "Armar sesión grupal" : "Agendar examen"} title={group ? "Sesión grupal" : "Agendar examen"} eyebrow="Para todo el grupo">
       <div className="stack" style={{ gap: 16 }}>
         <div className="seg" role="group" aria-label="Qué agendás">
-          <button aria-pressed={!group} onClick={() => setMode("examen")}>Examen</button>
-          <button aria-pressed={group} onClick={() => setMode("grupal")}>Sesión grupal</button>
+          <button aria-pressed={!group} onClick={() => setMode("examen")}><Icon name="book" size={16} /> Examen</button>
+          <button aria-pressed={group} onClick={() => setMode("grupal")}><Icon name="users" size={16} /> Sesión grupal</button>
         </div>
         <label className="field">
           <span>Materia</span>

@@ -449,7 +449,7 @@ export default function Estudiar() {
         ))}
         <button className="dur" aria-pressed={duration === null} onClick={() => setDuration(null)}>
           <div style={{ width: 70, height: 62, display: "grid", placeItems: "center" }}>
-            <Icon name="timer" size={34} stroke={1.6} />
+            <Icon name="infinity" size={38} stroke={1.6} />
           </div>
           <span className="t">Libre</span>
           <span className="p">Mejora con el tiempo</span>

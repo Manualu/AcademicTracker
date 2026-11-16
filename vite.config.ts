@@ -4,7 +4,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   base: "./",
-  build: { chunkSizeWarningLimit: 1600 },
+  build: { chunkSizeWarningLimit: 900, rollupOptions: { output: { manualChunks: (id: string) => (id.includes("@dicebear") ? "avatars" : id.includes("@supabase") ? "supabase" : undefined) } } },
   plugins: [
     react(),
     VitePWA({

@@ -12,6 +12,7 @@ import type { StudySession } from "./types";
 
 const KEY = "remontada.timer";
 const BREAK_KEY = "remontada.break";
+const RESULT_KEY = "remontada.result"; // sesión recién terminada que todavía no cerraste (sobrevive a recargar)
 const SAVED_KEY = "remontada.lastSaved"; // inicio de la última sesión guardada, compartido entre pestañas
 const MAX_MIN = 720;
 /** Una pausa puede durar hasta 5 minutos; después la sesión se cierra con lo hecho. */
@@ -116,9 +117,20 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [running, setRunning] = useState<RunningTimer | null>(load);
   const [pomoBreak, setBreak] = useState<PomoBreak | null>(() => loadKey<PomoBreak>(BREAK_KEY));
   const [now, setNow] = useState(Date.now());
-  const [result, setResult] = useState<StudySession | null>(null);
+  const [result, setResultState] = useState<StudySession | null>(() => {
+    try {
+      const r = JSON.parse(localStorage.getItem(RESULT_KEY) || "null") as { s: StudySession; at: number; b: number } | null;
+      return r && Date.now() - r.at < 15 * 60_000 ? r.s : null;
+    } catch { return null; }
+  });
+  const setResult = (s: StudySession | null, bonus = 0) => {
+    try { if (s) localStorage.setItem(RESULT_KEY, JSON.stringify({ s, at: Date.now(), b: bonus })); else localStorage.removeItem(RESULT_KEY); } catch { /* ignorar */ }
+    setResultState(s);
+  };
   const [autoClosed, setAutoClosed] = useState(false);
-  const [resultBonusMin, setResultBonus] = useState(0);
+  const [resultBonusMin, setResultBonus] = useState(() => {
+    try { const r = JSON.parse(localStorage.getItem(RESULT_KEY) || "null"); return r && Date.now() - r.at < 15 * 60_000 ? Number(r.b) || 0 : 0; } catch { return 0; }
+  });
   const savingRef = useRef(false);
   const savedStartRef = useRef<number | null>(null);
   const bellRef = useRef<number | null>(null);
@@ -169,7 +181,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       };
       dispatch({ kind: "session.add", session });
-      setResult(session);
+      setResult(session, bonus);
       setResultBonus(bonus);
       if (outcome === "completed") {
         if (document.visibilityState === "visible") { sfx("bell"); if (!getPrefs().sfx) beep(); }
