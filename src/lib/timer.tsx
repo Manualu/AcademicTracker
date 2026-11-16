@@ -12,6 +12,7 @@ import type { StudySession } from "./types";
 
 const KEY = "remontada.timer";
 const BREAK_KEY = "remontada.break";
+const SAVED_KEY = "remontada.lastSaved"; // inicio de la última sesión guardada, compartido entre pestañas
 const MAX_MIN = 720;
 /** Una pausa puede durar hasta 5 minutos; después la sesión se cierra con lo hecho. */
 export const PAUSE_MAX_MIN = 5;
@@ -143,7 +144,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     // Cada sesión (identificada por su hora de inicio) se guarda una sola vez, aunque el
     // chequeo de "terminó" corra dos veces seguidas antes de que se actualice la pantalla
     if (savedStartRef.current === t.startedAt) return;
+    // Otra pestaña ya la guardó (el marcador se comparte por localStorage)
+    try { if (localStorage.getItem(SAVED_KEY) === String(t.startedAt)) { savedStartRef.current = t.startedAt; persist(null); return; } } catch { /* ignorar */ }
     savedStartRef.current = t.startedAt;
+    try { localStorage.setItem(SAVED_KEY, String(t.startedAt)); } catch { /* ignorar */ }
     savingRef.current = true;
     persist(null);
     const studied = Math.floor(minutes);

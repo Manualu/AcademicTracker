@@ -327,20 +327,24 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   const [date, setDate] = useState(dayKey(new Date()));
   const [minutes, setMinutes] = useState(60);
   const [time, setTime] = useState(""); // hora de inicio (opcional)
+  const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(parseDay(date).getTime());
+  const isToday = dateOk && date === dayKey(new Date());
   // Hora de inicio elegida; si no se carga, hoy termina ahora y otro día empieza a las 17
   const chosenStart = (() => {
-    if (!time) return null;
+    if (!time || !dateOk) return null;
     const [h, m] = time.split(":").map(Number);
     const d = parseDay(date);
     return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m);
   })();
   const endsInFuture = !!chosenStart && chosenStart.getTime() + minutes * 60_000 > Date.now();
-  const valid = subject && subject.name.trim() && minutes >= 1 && minutes <= 720 && date <= dayKey(new Date()) && !endsInFuture;
+  // Sin hora y es hoy: la sesión termina ahora, así que tiene que entrar desde las 00:00
+  const sinceMidnight = isToday ? Math.floor((Date.now() - parseDay(date).getTime()) / 60_000) : Infinity;
+  const tooLongToday = isToday && !time && minutes > sinceMidnight;
+  const valid = !!subject && !!subject.name.trim() && dateOk && minutes >= 1 && minutes <= 720 && date <= dayKey(new Date()) && !endsInFuture && !tooLongToday;
 
   function save() {
     if (!valid || !userId) return;
     const day = parseDay(date);
-    const isToday = date === dayKey(new Date());
     // Si es hoy, la sesión termina ahora; si es otro día, se ubica a la tarde
     const start = chosenStart ?? (isToday ? new Date(Date.now() - minutes * 60_000) : new Date(day.getFullYear(), day.getMonth(), day.getDate(), 17, 0));
     if (start < day) start.setTime(day.getTime());
@@ -374,6 +378,7 @@ function ManualSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
             <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Hora de inicio (opcional)" />
           </label>
         </div>
+        {tooLongToday && <p className="tiny" style={{ margin: "-8px 0 0", color: "var(--red)" }}>Hoy solo pasaron {fmtMinutes(Math.max(0, sinceMidnight))} desde la medianoche: poné menos tiempo o cargala en otro día.</p>}
         {endsInFuture && <p className="tiny" style={{ margin: "-8px 0 0", color: "var(--red)" }}>Con esa hora y duración, la sesión termina en el futuro.</p>}
         {!time && <p className="tiny muted" style={{ margin: "-8px 0 0" }}>Si no ponés la hora, {date === dayKey(new Date()) ? "se toma que terminaste recién" : "se guarda a las 17 h"}.</p>}
         <div className="field">
